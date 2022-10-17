@@ -1,6 +1,7 @@
 """Test lib."""
 
 import logging
+import logging.config
 import os
 import pathlib
 import time
@@ -8,8 +9,17 @@ import unittest
 
 from upset import lib
 
-logger: logging.Logger = logging.getLogger()
+# create console handler and set level to debug
+logging_handler: logging.StreamHandler = logging.StreamHandler()
+logging_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(levelname)s %(name)s %(message)s')
+logging_handler.setFormatter(formatter)
+root_logger: logging.Logger = logging.getLogger()
+root_logger.setLevel(logging.ERROR)
+root_logger.addHandler(logging_handler)
+logger: logging.Logger = logging.getLogger(__name__)
 
+# pylint: disable=too-many-public-methods
 class TestLibFs(unittest.TestCase):
     """Test Fs from lib."""
 
