@@ -149,6 +149,52 @@ class Upset:
                 continue
             logger.info('sending file "%s"', file)
 
+    def send_file(self, file: pathlib.Path, destination: pathlib.Path,
+            user: str, host: str) -> None:
+        """Send a file using scp.
+
+        Args:
+            file: Path to the file to send.
+            destination. Path where the file should be sent to (directory).
+            user: The user to log in with.
+            host: The host to execute the task on.
+        """
+        self.run_command(['scp', f'{user}@{host}', str(file), str(destination)])
+
+    def make_temporary_directory(self, user: str, host: str) -> pathlib.Path:
+        """Create a temporary directory for `user` on `host`.
+
+        Args:
+            user: The user to log in with.
+            host: The host to execute the task on.
+
+        Returns:
+            The path of the temporary directory.
+        """
+        try:
+            return pathlib.Path(self.run_command(
+                self.build_remote_command(['mktemp', '-d'], user, host)))
+        except UpsetError as error:
+            raise UpsetError(
+                    'could not create temporary directory') from error
+
+    def remove_temporary_directory(self, directory: pathlib.Path, user: str,
+            host: str) -> None:
+        """Remove the temporary directory for `user` on `host`.
+
+        Args:
+            directory: The path to the temporary directory.
+            user: The user to log in with.
+            host: The host to execute the task on.
+        """
+        try:
+            self.run_command(
+                self.build_remote_command(['rm', '-r', str(directory)], user,
+                    host))
+        except UpsetError as error:
+            raise UpsetError(
+                    'could not remove temporary directory') from error
+
     def run_command(self, command_parts: list[str]) -> str:
         """Run a command as a subprocess.
 
@@ -213,7 +259,7 @@ class Upset:
         Args:
             command_parts: The command with parameters to run on `host`, each as
                 its own string.
-            user: The user to loggon to root.
+            user: The user to log in with.
             host: The host to execute the task on.
         """
         return ['ssh', f'{user}@{host}'] + command_parts
