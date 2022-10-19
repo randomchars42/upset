@@ -6,6 +6,7 @@ import pathlib
 import unittest
 
 from typing import Any
+from upset import lib
 from upset import upset
 
 # create console handler and set level to debug
@@ -60,19 +61,15 @@ class TestUpsetUpset(unittest.TestCase):
     def test_read_plan_fail_missing(self) -> None:
         """Fail because of missing / inaccessible plan."""
         plan: pathlib.Path = pathlib.Path(self._base_dir / 'plan')
-        with self.assertRaises(upset.UpsetError):
+        with self.assertRaises(lib.UpsetError):
             self._upset.read_plan(plan)
 
     def test_read_plan_fail_json(self) -> None:
         """Fail because of misshapen JSON."""
         plan: pathlib.Path = pathlib.Path(self._base_dir / 'plan')
         plan.write_text('[{"name": "a",{"name": "b"}]', encoding='utf-8')
-        with self.assertRaises(upset.UpsetError):
+        with self.assertRaises(lib.UpsetError):
             self._upset.read_plan(plan)
 
-    def test_build_sudo_command(self) -> None:
-        """Build sudo command sequence."""
-        self.assertEqual(
-                self._upset.build_sudo_command(['echo', '"Hello"'], 'password'),
-                ['echo ZWNobyAicGFzc3dvcmQiIHwgc3VkbyAtUyAtLXByb21wdD0gLS0gZWNobyAiSGVsbG8i | base64 -d | $SHELL'])
-
+if __name__ == '__main__':
+    unittest.main()

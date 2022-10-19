@@ -1,15 +1,18 @@
 """Library providing basic functionality and a base class for plugins."""
 
-import configparser
+import base64
 import dataclasses
+import getpass
 import grp
 import logging
 import os
 import pathlib
 import pwd
 import re
+import socket
 import stat
 import string
+import subprocess
 
 logger: logging.Logger = logging.getLogger()
 
@@ -37,6 +40,13 @@ class PermissionSet():
     mode: int = 0o600
     owner: str = ''
     group: str = ''
+
+
+class UpsetError(Exception):
+    """Custom exception."""
+
+class UpsetSysError(UpsetError):
+    """Error for Sys interactions."""
 
 class UpsetFsError(Exception):
     """Error for Fs interactions."""
@@ -307,6 +317,180 @@ class Fs:
             raise UpsetFsError(
                     f'could not write file "{path}"') from error
 
+class Sys:
+    """Provide interactions with the system."""
+
+    @staticmethod
+    def run_command(command_parts: list[str]) -> str:
+        """Run a command as a subprocess.
+
+        Args:
+            command_parts: The command with parameters, each in its own string.
+
+        Returns:
+            Output of the command (without final `"\n"`).
+
+        Raises:
+            UpsetError: Raised if the remote command fails.
+        """
+        try:
+            return subprocess.run(command_parts, check=True,
+                    capture_output=True).stdout.decode().strip()
+        except subprocess.CalledProcessError as error:
+            raise UpsetSysError(
+                    f'command {" ".join(command_parts)} returned an error'
+                    ) from error
+
+    @staticmethod
+    def build_sudo_command(command_parts: list[str], password: str,
+            user: str = '', host: str = '') -> list[str]:
+        """Prepare a command to be run with sudo non-interactively.
+
+        Achieves this by making `sudo` read the password from `stdin` (`-S`) and
+        without a promt (`--prompt=`). The password is `echo`ed and piped into
+        `sudo`s `stdin`.
+
+        To avoid having to deal with escaping issues the sequence
+        `echo "{password}" | sudo -S --prompt= -- {command}` is encoded as
+        `base64` (as suggested by "ThoriumBR" on
+        <https://serverfault.com/questions/625641>).
+
+        At the target the encoded sequence gets decoded by piping it to
+        `base64 -d` and evaluating the output in the `$SHELL`.
+
+        Beware: The command parts are simply joined with `" ".join(command)`.
+        The behaviour might differ from `subprocess.check_output(command)`!
+
+        Args:
+            command_parts: The command to run with its parameters, each in its
+                own string.
+            password: The password to use with `sudo`.
+            user: The user to log in with (see `Sys.build_command()` for
+                default behaviour).
+            host: The host to execute the task on (see `Sys.build_command()` for
+                default behaviour).
+
+        Returns:
+            A command that can be passed to a shell via `Sys.run_command()`.
+        """
+        command: str = ' '.join(command_parts)
+        # base64.b64encode() needs a byte-like argument so the string is first
+        # "encoded"
+        encoded_command: bytes = base64.b64encode(
+                f'echo "{password}" | /usr/bin/sudo -S --prompt= -- {command}\n'.encode())
+        # the result is a bytestream so it is "decoded" to a string
+        # but it is still base64-gibberish
+        return Sys.build_command(
+                [f'echo {encoded_command.decode()} | /usr/bin/base64 -d | $SHELL'],
+                user, host)
+
+
+    @staticmethod
+    def build_command(command_parts: list[str], user: str = '',
+            host: str = '') -> list[str]:
+        """Run a command on a remote host.
+
+        Args:
+            command_parts: The command with parameters to run on `host`, each as
+                its own string.
+        """
+        if user == '':
+            user = getpass.getuser()
+        if host == '':
+            host = socket.gethostname()
+
+        if host == socket.gethostname() and user == getpass.getuser():
+            return command_parts
+
+        return ['/usr/bin/ssh', f'{user}@{host}'] + command_parts
+
+    @staticmethod
+    def build_scp_command(local_path: pathlib.Path, remote_path: pathlib.Path,
+            direction: str = 'to', user: str = '', host: str = '') -> list[str]:
+        """Build a command to copy files (from / to a remote machine).
+
+        Though it can be used to move files locally this function is meant to
+        copy files between hosts using scp. The ability to move files locally is
+        used for debugging.
+
+        Args:
+            local_path: Path on the local machine.
+            remote_path: Path on the remote machine.
+            direction: Copy 'to' remote or 'from' remote.
+            user: The user to log in with (see `Sys.build_command()` for
+                default behaviour).
+            host: The host to execute the task on (see `Sys.build_command()` for
+                default behaviour).
+        """
+        direction = direction.lower()
+
+        if direction not in ['to', 'from']:
+            raise UpsetSysError(f'not a valid option "{direction}"')
+
+        if user == '':
+            user = getpass.getuser()
+        if host == '':
+            host = socket.gethostname()
+
+        local: str = str(local_path)
+        remote: str = str(remote_path)
+
+        if host == socket.gethostname() and user == getpass.getuser():
+            # use this for debugging
+            copy: str = '/usr/bin/cp'
+        else:
+            copy = '/usr/bin/scp'
+            remote = f'{user}@{host}:/{remote}'
+
+        if direction == 'to':
+            source: str = local
+            destination: str = remote
+        else:
+            source = remote
+            destination = local
+
+        return [copy, source, destination]
+
+    @staticmethod
+    def make_temporary_directory(user: str = '',
+            host: str = '') -> pathlib.Path:
+        """Create a temporary directory for `user` on `host`.
+
+        Args:
+            user: The user to log in with (see `Sys.build_command()` for
+                default behaviour).
+            host: The host to execute the task on (see `Sys.build_command()` for
+                default behaviour).
+
+        Returns:
+            The path of the temporary directory.
+        """
+        try:
+            return pathlib.Path(Sys.run_command(
+                Sys.build_command(['mktemp', '-d'], user, host)))
+        except UpsetError as error:
+            raise UpsetError(
+                    'could not create temporary directory') from error
+
+    @staticmethod
+    def remove_temporary_directory(directory: pathlib.Path,
+            user: str = '', host: str = '') -> None:
+        """Remove the temporary directory for `user` on `host`.
+
+        Args:
+            directory: The path to the temporary directory.
+            user: The user to log in with (see `Sys.build_command()` for
+                default behaviour).
+            host: The host to execute the task on (see `Sys.build_command()` for
+                default behaviour).
+        """
+        try:
+            Sys.run_command(
+                Sys.build_command(['rm', '-r', str(directory)], user,
+                    host))
+        except UpsetError as error:
+            raise UpsetError(
+                    'could not remove temporary directory') from error
 
 class Plugin:
     """

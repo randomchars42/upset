@@ -1,22 +1,18 @@
 #!/usr/bin/env python3.10
-"""Upset."""
+"""Upset a system."""
 
 from __future__ import annotations
 
 import argparse
-import base64
 import getpass
 import json
 import logging
 import pathlib
-import subprocess
 
 from typing import Any
+from upset import lib
 
 logger: logging.Logger = logging.getLogger()
-
-class UpsetError(Exception):
-    """Custom exception."""
 
 class Task():
     """Describes the minimal variables in a task."""
@@ -68,7 +64,7 @@ class Task():
                     setattr(task, name, json_object[name])
             return task
         except KeyError as error:
-            raise UpsetError('could not parse task') from error
+            raise lib.UpsetError('could not parse task') from error
 
 Tasklist = list[Task]
 
@@ -102,8 +98,7 @@ class Upset:
             for task in self.read_plan(pathlib.Path(path_plan)):
                 self.send_plugin(task)
                 self.send_files(task)
-                self.run_task(task, user, host, password)
-        except UpsetError as error:
+        except lib.UpsetError as error:
             logger.error(error)
 
     def read_plan(self, path: pathlib.Path) -> list[Any]:
@@ -116,9 +111,9 @@ class Upset:
         try:
             raw: list[Any] = json.loads(path.read_text(encoding='utf-8'))
         except FileNotFoundError as error:
-            raise UpsetError(f'could not read plan "{path}"') from error
+            raise lib.UpsetError(f'could not read plan "{path}"') from error
         except json.JSONDecodeError as error:
-            raise UpsetError(f'invalid plan "{path}"') from error
+            raise lib.UpsetError(f'invalid plan "{path}"') from error
 
         tasklist: Tasklist = []
 
@@ -159,110 +154,8 @@ class Upset:
             user: The user to log in with.
             host: The host to execute the task on.
         """
-        self.run_command(['scp', f'{user}@{host}', str(file), str(destination)])
-
-    def make_temporary_directory(self, user: str, host: str) -> pathlib.Path:
-        """Create a temporary directory for `user` on `host`.
-
-        Args:
-            user: The user to log in with.
-            host: The host to execute the task on.
-
-        Returns:
-            The path of the temporary directory.
-        """
-        try:
-            return pathlib.Path(self.run_command(
-                self.build_remote_command(['mktemp', '-d'], user, host)))
-        except UpsetError as error:
-            raise UpsetError(
-                    'could not create temporary directory') from error
-
-    def remove_temporary_directory(self, directory: pathlib.Path, user: str,
-            host: str) -> None:
-        """Remove the temporary directory for `user` on `host`.
-
-        Args:
-            directory: The path to the temporary directory.
-            user: The user to log in with.
-            host: The host to execute the task on.
-        """
-        try:
-            self.run_command(
-                self.build_remote_command(['rm', '-r', str(directory)], user,
-                    host))
-        except UpsetError as error:
-            raise UpsetError(
-                    'could not remove temporary directory') from error
-
-    def run_command(self, command_parts: list[str]) -> str:
-        """Run a command as a subprocess.
-
-        Args:
-            command_parts: The command with parameters, each in its own string.
-
-        Returns:
-            Output of the command (without final `"\n"`).
-
-        Raises:
-            UpsetError: Raised if the remote command fails.
-        """
-        try:
-            return subprocess.check_output(command_parts).decode().strip()
-        except ChildProcessError as error:
-            raise UpsetError(
-                    f'command "{command_parts}" returned an error') from error
-
-    def build_sudo_command(self,
-            command_parts: list[str], password: str) -> list[str]:
-        """Prepare a command to be run with sudo non-interactively.
-
-        Achieves this by making `sudo` read the password from `stdin` (`-S`) and
-        without a promt (`--prompt=`). The password is `echo`ed and piped into
-        `sudo`s `stdin`.
-
-        To avoid having to deal with escaping issues the sequence
-        `echo "{password}" | sudo -S --prompt= -- {command}` is encoded as
-        `base64` (as suggested by "ThoriumBR" on
-        <https://serverfault.com/questions/625641>).
-
-        At the target the encoded sequence gets decoded by piping it to
-        `base64 -d` and evaluating the output in the `$SHELL`.
-
-        Beware: The command parts are simply joined with `" ".join(command)`.
-        The behaviour might differ from `subprocess.check_output(command)`!
-
-        Args:
-            command_parts: The command to run with its parameters, each in its
-                own string.
-            password: The password to use with `sudo`.
-
-        Returns:
-            A command that can be passed to a shell but must be interpreted,
-                e.g., `bash -c "COMMAND"` or `ssh USER@HOST "COMMAND"`. Although
-                the return value is a list it only holds one string containing
-                the whole command. This is done for consistency / convenience.
-        """
-        command: str = ' '.join(command_parts)
-        # base64.b64encode() needs a byte-like argument so the string is first
-        # "encoded"
-        encoded_command: bytes = base64.b64encode(
-                f'echo "{password}" | sudo -S --prompt= -- {command}'.encode())
-        # the result is a bytestream so it is "decoded" to a string
-        # but it is still base64-gibberish
-        return [f'echo {encoded_command.decode()} | base64 -d | $SHELL']
-
-    def build_remote_command(self, command_parts: list[str], user: str,
-            host: str) -> list[str]:
-        """Run a command on a remote host.
-
-        Args:
-            command_parts: The command with parameters to run on `host`, each as
-                its own string.
-            user: The user to log in with.
-            host: The host to execute the task on.
-        """
-        return ['ssh', f'{user}@{host}'] + command_parts
+        lib.Sys.run_command(
+                lib.Sys.build_scp_command())
 
 def main() -> None:
     """Reads cli arguments and runs the main loop."""
