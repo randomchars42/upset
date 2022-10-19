@@ -467,7 +467,7 @@ class Sys:
         """
         try:
             return pathlib.Path(Sys.run_command(
-                Sys.build_command(['mktemp', '-d'], user, host)))
+                Sys.build_command(['/usr/bin/mktemp', '-d'], user, host)))
         except UpsetError as error:
             raise UpsetError(
                     'could not create temporary directory') from error
@@ -486,7 +486,7 @@ class Sys:
         """
         try:
             Sys.run_command(
-                Sys.build_command(['rm', '-r', str(directory)], user,
+                Sys.build_command(['/usr/bin/rm', '-r', str(directory)], user,
                     host))
         except UpsetError as error:
             raise UpsetError(
