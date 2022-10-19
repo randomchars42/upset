@@ -12,6 +12,7 @@ import stat
 import string
 
 logger: logging.Logger = logging.getLogger()
+logger.addHandler(logging.NullHandler())
 
 @dataclasses.dataclass
 class Template():

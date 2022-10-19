@@ -2,7 +2,6 @@
 """Upset."""
 
 import argparse
-import importlib
 import logging
 import pathlib
 import sys
@@ -11,7 +10,7 @@ from types import Any, ModuleType
 
 import pkg_resources
 
-logger: logging.Logger = logging.getLogger()
+logger: logging.Logger = logging.getLogger(__name__)
 
 class Upset:
     """
@@ -41,7 +40,14 @@ def main() -> None:
     # there are only levels 0 to 3
     # everything else will cause the index to be out of bounds
     verbosity_level: int = min(args.verbosity, 3)
-    logger.setLevel(levels[verbosity_level])
+    logging_handler: logging.StreamHandler = logging.StreamHandler()
+    logging_handler.setLevel(logging.DEBUG)
+    logging_formatter = logging.Formatter('%(levelname)s %(name)s %(message)s')
+    logging_handler.setFormatter(logging_formatter)
+    root_logger: logging.Logger = logging.getLogger()
+    root_logger.setLevel(logging.ERROR)
+    root_logger.addHandler(logging_handler)
+    root_logger.setLevel(levels[verbosity_level])
 
 
 if __name__ == '__main__':
