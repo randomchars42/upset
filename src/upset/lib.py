@@ -400,7 +400,7 @@ class Sys:
             host = socket.gethostname()
 
         if host == socket.gethostname() and user == getpass.getuser():
-            return command_parts
+            return ['/usr/bin/bash', '-c', ' '.join(command_parts)]
 
         return ['/usr/bin/ssh', f'{user}@{host}'] + command_parts
 
