@@ -71,5 +71,18 @@ class TestUpsetUpset(unittest.TestCase):
         with self.assertRaises(lib.UpsetError):
             self._upset.read_plan(plan)
 
+    def test_send_lib(self) -> None:
+        """Send lib."""
+        self._upset.send_lib(self._base_dir, user='', host='')
+        self.assertTrue(pathlib.Path(self._base_dir / 'lib.py').exists())
+
+    def test_send_plugin(self) -> None:
+        """Send plugin."""
+        pass
+
+    def test_send_files(self) -> None:
+        """Send files."""
+        pass
+
 if __name__ == '__main__':
     unittest.main()

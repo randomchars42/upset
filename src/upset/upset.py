@@ -8,6 +8,7 @@ import getpass
 import json
 import logging
 import pathlib
+import pkg_resources
 
 from typing import Any
 from upset import lib
@@ -91,21 +92,36 @@ class Upset:
             host: The host to run the tasks on.
         """
 
-        password: str = getpass.getpass()
-
         try:
+            plan: Tasklist = self.read_plan(pathlib.Path(path_plan))
+            password: str = getpass.getpass(f'Password for {user}@{host}:')
+            temp_dir: pathlib.Path = lib.Sys.make_temporary_directory(
+                    user, host)
+            self.send_lib(temp_dir, user, host)
+
             task: Task
-            for task in self.read_plan(pathlib.Path(path_plan)):
-                self.send_plugin(task)
-                self.send_files(task)
+            for task in plan:
+                self.send_plugin(task, temp_dir, user, host)
+                self.send_files(task, temp_dir, user, host)
+                self.run_task(task, temp_dir, user, host, password)
         except lib.UpsetError as error:
             logger.error(error)
+        finally:
+            try:
+                lib.Sys.remove_temporary_directory(temp_dir)
+            except lib.UpsetError:
+                logger.error('could not clean up temporary directory "%s"',
+                        temp_dir)
 
     def read_plan(self, path: pathlib.Path) -> list[Any]:
         """Read the specified JSON file and validate it as a plan.
 
         Args:
             path: The path to the file.
+
+        Raises:
+            lib.UpsetError: Raised if the plan cannot be accessed or is
+                malformed.
         """
         logger.info('reading plan "%s"', str(path))
         try:
@@ -122,40 +138,126 @@ class Upset:
 
         return tasklist
 
-    def send_plugin(self, task: Task) -> None:
+    def send_lib(self, temporary_directory: pathlib.Path, user: str,
+            host: str) -> None:
+        """Send the library if it has not already been sent.
+
+        Args:
+            temporary_directory: The path to the temporary_directory on the
+                target machine.
+            user: The user to log in with.
+            host: The host to execute the task on.
+
+        Raises:
+            lib.UpsetError: Raised if the transfer failed.
+        """
+        logger.info('sending lib')
+
+        try:
+            lib.Sys.run_command(
+                    lib.Sys.build_scp_command(
+                        pathlib.Path(pkg_resources.resource_filename(
+                            __name__, 'lib.py')),
+                        temporary_directory,
+                        direction='to', user=user, host=host))
+        except lib.UpsetSysError as error:
+            raise lib.UpsetError('could not send lib') from error
+
+    def send_plugin(self, task: Task, temporary_directory: pathlib.Path,
+            user: str, host: str) -> None:
         """Send the required plugin if it has not already been sent.
 
         Args:
-            task: The task that requrires the plugin.
+            task: The task that requires the plugin.
+            temporary_directory: The path to the temporary_directory on the
+                target machine.
+            user: The user to log in with.
+            host: The host to execute the task on.
+
+        Raises:
+            lib.UpsetError: Raised if the plugin could not be found or the
+                transfer failed.
         """
         if task.plugin in self._sent_plugins:
             return
 
+        # TODO work with pkg_resources
         logger.info('sending plugin "%s"', task.plugin)
 
-    def send_files(self, task: Task) -> None:
+        plugin: pathlib.Path = pathlib.Path(
+                f'plugins/{task.plugin}/{task.plugin}.py')
+
+        if not plugin.exists():
+            raise lib.UpsetError('could not find plugin')
+
+        try:
+            lib.Sys.run_command(
+                    lib.Sys.build_scp_command(
+                        plugin,
+                        temporary_directory,
+                        direction='to', user=user, host=host))
+        except lib.UpsetSysError as error:
+            raise lib.UpsetError(
+                    f'could not send plugin "{task.plugin}"') from error
+
+        self._sent_plugins.append(task.plugin)
+
+    def send_files(self, task: Task, temporary_directory: pathlib.Path,
+            user: str, host: str) -> None:
         """Send files required by the task if they have not already been sent.
 
         Args:
-            task: The task that requrires the plugin.
+            task: The task that requires the files.
+            temporary_directory: The path to the temporary_directory on the
+                target machine.
+            user: The user to log in with.
+            host: The host to execute the task on.
+
+        Raises:
+            lib.UpsetError: Raised if the transfer failed.
         """
         for file in task.files:
             if file in self._sent_files:
                 continue
             logger.info('sending file "%s"', file)
+            try:
+                lib.Sys.run_command(
+                        lib.Sys.build_scp_command(
+                            pathlib.Path(file),
+                            temporary_directory,
+                            direction='to', user=user, host=host))
+            except lib.UpsetSysError as error:
+                raise lib.UpsetError(
+                        f'could not send file "{file}"') from error
+            self._sent_files.append(file)
 
-    def send_file(self, file: pathlib.Path, destination: pathlib.Path,
-            user: str, host: str) -> None:
-        """Send a file using scp.
+    # pylint: disable=too-many-arguments
+    def run_task(self, task: Task, temporary_directory: pathlib.Path,
+            user: str, host: str, password: str,
+            python: str = '/usr/bin/python3') -> None:
+        """Run the task on the target machine.
 
         Args:
-            file: Path to the file to send.
-            destination. Path where the file should be sent to (directory).
+            task: The task to run.
+            temporary_directory: The path to the temporary_directory on the
+                target machine.
             user: The user to log in with.
             host: The host to execute the task on.
+            password: The password to use `sudo` on the target machine.
+            python: The python executable on the target machine.
+
+        Raises:
+            lib.UpsetError: Raised if the transfer failed.
         """
-        lib.Sys.run_command(
-                lib.Sys.build_scp_command())
+        try:
+            lib.Sys.run_command(
+                    lib.Sys.build_sudo_command(
+                        [python,
+                            str(temporary_directory / f'{task.plugin}.py')],
+                        password, user, host))
+        except lib.UpsetSysError as error:
+            raise lib.UpsetError(
+                    f'could not run plugin "{task.plugin}"') from error
 
 def main() -> None:
     """Reads cli arguments and runs the main loop."""
