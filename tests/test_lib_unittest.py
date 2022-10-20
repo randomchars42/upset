@@ -354,7 +354,7 @@ class TestLibSys(unittest.TestCase):
         temp_dir.rmdir()
 
     def test_remove_temporary_directory(self) -> None:
-        """Create a temporary directory."""
+        """Remove a temporary directory."""
         temp_dir: pathlib.Path = pathlib.Path(self._base_dir / 'tmp')
         temp_dir.mkdir()
         pathlib.Path(self._base_dir / 'tmp' / 'a').touch()
