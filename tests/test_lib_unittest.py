@@ -298,23 +298,23 @@ class TestLibSys(unittest.TestCase):
         self.assertEqual(
                 lib.Sys.run_command(
                     lib.Sys.build_command(
-                        ['/usr/bin/bash', '-c', 'echo "Hello"'])),
+                        ['echo "Hello"'])),
                 'Hello')
 
     def test_build_sudo_command(self) -> None:
         """Build sudo command sequence."""
         self.assertEqual(
                 lib.Sys.build_sudo_command(['echo', '"Hello"'], 'password'),
-                ['echo ZWNobyAicGFzc3dvcmQiIHwgL3Vzci9iaW4vc3VkbyAtUyAtLXByb21'\
-                        'wdD0gLS0gZWNobyAiSGVsbG8iCg== | /usr/bin/base64 -d | '\
-                        '$SHELL'])
+                ['/usr/bin/bash', '-c',
+                    'echo ZWNobyAicGFzc3dvcmQiIHwgL3Vzci9iaW4vc3VkbyAtUyAtLXBy'\
+                            'b21wdD0gLS0gZWNobyAiSGVsbG8iCg== | '\
+                            '/usr/bin/base64 -d | $SHELL'])
 
     @unittest.skip('do not ask for sudo password by default')
     def test_build_sudo_command_run(self) -> None:
         """Run sudo command sequence."""
         self.assertEqual(
                 lib.Sys.run_command(
-                    ['/usr/bin/bash', '-c'] +
                     lib.Sys.build_sudo_command(['echo', 'Hello'],
                         getpass.getpass())),
                 'Hello')
@@ -346,6 +346,21 @@ class TestLibSys(unittest.TestCase):
                 lib.Sys.build_scp_command(file_a, file_b))
         self.assertTrue(file_a.exists())
         self.assertTrue(file_b.exists())
+
+    def test_make_temporary_directory(self) -> None:
+        """Create a temporary directory."""
+        temp_dir: pathlib.Path = lib.Sys.make_temporary_directory()
+        self.assertTrue(temp_dir.exists())
+        temp_dir.rmdir()
+
+    def test_remove_temporary_directory(self) -> None:
+        """Create a temporary directory."""
+        temp_dir: pathlib.Path = pathlib.Path(self._base_dir / 'tmp')
+        temp_dir.mkdir()
+        pathlib.Path(self._base_dir / 'tmp' / 'a').touch()
+        self.assertTrue(temp_dir.is_dir())
+        lib.Sys.remove_temporary_directory(temp_dir)
+        self.assertFalse(temp_dir.exists())
 
 if __name__ == '__main__':
     unittest.main()
