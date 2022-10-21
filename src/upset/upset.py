@@ -22,6 +22,7 @@ class Task():
         self.name: str = name
         self.plugin: str = ''
         self.foreach: list[str] = []
+        self.foreach_variable: str = ''
         self.variables: dict[str, str] = {}
         self.files: dict[str, str] = {}
 
@@ -30,6 +31,7 @@ class Task():
             "name": self.name,
             "plugin": self.plugin,
             "foreach": self.foreach,
+            "foreach_variable": self.foreach_variable,
             "variables": self.variables,
             "files": self.files
         }.items()
@@ -181,7 +183,7 @@ class Upset:
         if task.plugin in self._sent_plugins:
             return
 
-        # TODO work with pkg_resources
+        # TODO plugin include path and work with pkg_resources
         logger.info('sending plugin "%s"', task.plugin)
 
         plugin: pathlib.Path = pathlib.Path(
@@ -216,20 +218,22 @@ class Upset:
         Raises:
             lib.UpsetError: Raised if the transfer failed.
         """
-        for file in task.files:
-            if file in self._sent_files:
+        for name,file in task.files.items():
+            if name in self._sent_files:
                 continue
             logger.info('sending file "%s"', file)
             try:
+                file_path: pathlib.Path = pathlib.Path(file)
                 lib.Sys.run_command(
                         lib.Sys.build_scp_command(
-                            pathlib.Path(file),
-                            temporary_directory,
+                            file_path,
+                            temporary_directory /
+                                lib.Helper.create_unique_file_name(file_path),
                             direction='to', user=user, host=host))
             except lib.UpsetSysError as error:
                 raise lib.UpsetError(
                         f'could not send file "{file}"') from error
-            self._sent_files.append(file)
+            self._sent_files.append(name)
 
     # pylint: disable=too-many-arguments
     def run_task(self, task: Task, temporary_directory: pathlib.Path,

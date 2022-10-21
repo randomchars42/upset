@@ -257,7 +257,7 @@ class TestLibFs(unittest.TestCase):
 
 # pylint: disable=too-many-public-methods
 class TestLibSys(unittest.TestCase):
-    """Test Upset from upset."""
+    """Test Sys from lib."""
 
     def setUp(self) -> None:
         """Add test directory and instantiate class."""
@@ -361,6 +361,16 @@ class TestLibSys(unittest.TestCase):
         self.assertTrue(temp_dir.is_dir())
         lib.Sys.remove_temporary_directory(temp_dir)
         self.assertFalse(temp_dir.exists())
+
+# pylint: disable=too-many-public-methods
+class TestLibHelper(unittest.TestCase):
+    """Test Sys from lib."""
+
+    def test_create_unique_filename(self) -> None:
+        """Create a unique filename."""
+        name: str = lib.Helper.create_unique_file_name(
+                pathlib.Path('/home/test/a'))
+        self.assertEqual(name, 'home___test___a')
 
 if __name__ == '__main__':
     unittest.main()

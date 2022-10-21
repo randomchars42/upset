@@ -24,9 +24,23 @@ class TestUpsetUpset(unittest.TestCase):
     """Test Upset from upset."""
 
     def setUp(self) -> None:
-        """Add test directory and instantiate class."""
+        """Add test directory, instantiate class and build fake task."""
         self._upset: upset.Upset = upset.Upset()
         self._base_dir: pathlib.Path = pathlib.Path('tests/tmp')
+        self._task: upset.Task = upset.Task.from_json({
+                "name": "faketask",
+                "plugin": "fakeplugin",
+                "variables": {
+                    "var_1": "Var 1",
+                    "var_2": "Var 2"
+                    },
+                "foreach_variable": "file",
+                "foreach": ["a", "b"],
+                "files": {
+                    "template_a": str(self._base_dir / 'template_a'),
+                    "template_b": str(self._base_dir / 'template_b'),
+                    }
+                })
         try:
             self._base_dir.mkdir()
         except OSError:
@@ -49,7 +63,7 @@ class TestUpsetUpset(unittest.TestCase):
 
     def test_read_plan(self) -> None:
         """Read a plan."""
-        plan: pathlib.Path = pathlib.Path(self._base_dir / 'plan')
+        plan: pathlib.Path = self._base_dir / 'plan'
         plan.write_text('[{"name": "a", "plugin": "c"},{"name": "b"}]',
                 encoding='utf-8')
         tasklist: list[Any] = self._upset.read_plan(plan)
@@ -60,13 +74,13 @@ class TestUpsetUpset(unittest.TestCase):
 
     def test_read_plan_fail_missing(self) -> None:
         """Fail because of missing / inaccessible plan."""
-        plan: pathlib.Path = pathlib.Path(self._base_dir / 'plan')
+        plan: pathlib.Path = self._base_dir / 'plan'
         with self.assertRaises(lib.UpsetError):
             self._upset.read_plan(plan)
 
     def test_read_plan_fail_json(self) -> None:
         """Fail because of misshapen JSON."""
-        plan: pathlib.Path = pathlib.Path(self._base_dir / 'plan')
+        plan: pathlib.Path = self._base_dir / 'plan'
         plan.write_text('[{"name": "a",{"name": "b"}]', encoding='utf-8')
         with self.assertRaises(lib.UpsetError):
             self._upset.read_plan(plan)
@@ -78,11 +92,20 @@ class TestUpsetUpset(unittest.TestCase):
 
     def test_send_plugin(self) -> None:
         """Send plugin."""
-        pass
 
     def test_send_files(self) -> None:
         """Send files."""
-        pass
+        local_a: pathlib.Path = self._base_dir / 'template_a'
+        local_a.touch()
+        local_b: pathlib.Path = self._base_dir / 'template_b'
+        local_b.touch()
+        self._upset.send_files(self._task, self._base_dir, user='', host='')
+        self.assertTrue(pathlib.Path(
+            self._base_dir / lib.Helper.create_unique_file_name(local_a)
+            ).exists())
+        self.assertTrue(pathlib.Path(
+            self._base_dir / lib.Helper.create_unique_file_name(local_b)
+            ).exists())
 
 if __name__ == '__main__':
     unittest.main()

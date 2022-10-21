@@ -492,6 +492,21 @@ class Sys:
             raise UpsetError(
                     'could not remove temporary directory') from error
 
+class Helper:
+    """Provide some functions."""
+
+    @staticmethod
+    def create_unique_file_name(file: pathlib.Path) -> str:
+        """Create a more unique filename.
+
+        Args:
+            file: The file to create a new name for.
+
+        Returns:
+        The new name.
+        """
+        return '___'.join(file.resolve(strict=False).parts[1:])
+
 class Plugin:
     """
 
