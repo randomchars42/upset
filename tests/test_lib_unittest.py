@@ -366,11 +366,40 @@ class TestLibSys(unittest.TestCase):
 class TestLibHelper(unittest.TestCase):
     """Test Sys from lib."""
 
+    def setUp(self) -> None:
+        """Add test directory and instantiate class."""
+        self._base_dir: pathlib.Path = pathlib.Path('tests/tmp')
+        try:
+            self._base_dir.mkdir()
+        except OSError:
+            logger.debug('could not create "%s"', self._base_dir)
+
+    def tearDown(self) -> None:
+        """Remove files."""
+        for file in self._base_dir.glob('*'):
+            try:
+                if file.is_dir():
+                    file.rmdir()
+                else:
+                    file.unlink()
+            except OSError:
+                logger.debug('could not remove "%s"', file)
+        try:
+            self._base_dir.rmdir()
+        except OSError:
+            logger.debug('could not remove "%s"', self._base_dir)
+
     def test_create_unique_filename(self) -> None:
         """Create a unique filename."""
         name: str = lib.Helper.create_unique_file_name(
                 pathlib.Path('/home/test/a'))
         self.assertEqual(name, 'home___test___a')
 
+    def test_localise_plugin(self) -> None:
+        """Localise a plugin."""
+        pathlib.Path(self._base_dir / 'a.py').touch()
+        self.assertEqual(
+                lib.Helper.localise_plugin('a', [self._base_dir]),
+                self._base_dir / 'a.py')
 if __name__ == '__main__':
     unittest.main()

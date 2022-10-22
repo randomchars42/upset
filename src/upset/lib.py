@@ -4,6 +4,7 @@ import base64
 import dataclasses
 import getpass
 import grp
+import json
 import logging
 import os
 import pathlib
@@ -13,6 +14,8 @@ import socket
 import stat
 import string
 import subprocess
+
+from typing import Any
 
 logger: logging.Logger = logging.getLogger()
 
@@ -50,6 +53,9 @@ class UpsetSysError(UpsetError):
 
 class UpsetFsError(Exception):
     """Error for Fs interactions."""
+
+class UpsetHelperError(Exception):
+    """Error for Helper interactions."""
 
 class Fs:
     """Filesystem related functions."""
@@ -506,6 +512,59 @@ class Helper:
         The new name.
         """
         return '___'.join(file.resolve(strict=False).parts[1:])
+
+    @staticmethod
+    def localise_plugin(name: str, paths: list[pathlib.Path]) -> pathlib.Path:
+        """Localise the plugin.
+
+        Args:
+            name: The name of the plugin.
+            paths: List of paths to search for the plugin.
+
+        Returns:
+        Path to the plugin.
+
+        Raises:
+            UpserHelperError: Raised if the plugin can't be found.
+        """
+        for path in paths:
+            plugin_path: pathlib.Path = path / f'{name}.py'
+            if plugin_path.exists():
+                return plugin_path
+        raise UpsetHelperError(f'could not locate plugin "{name}"')
+
+    @staticmethod
+    def encode_data(data: Any) -> str:
+        """Encode data passed as JSON object to a base64 string.
+
+        Args:
+            data: Data to encode, must be a valid JSON object.
+
+        Returns:
+            Encoded data.
+        """
+        try:
+            return base64.b64encode(json.dumps(data).encode()).decode()
+        except (TypeError, RecursionError, ValueError) as error:
+            raise UpsetHelperError(
+                    'could not dump and encode data') from error
+
+    @staticmethod
+    def decode_data(data: str) -> Any:
+        """Decode data passed as a base64 string to a JSON object.
+
+        Args:
+            data: Data to decode, must be a valid string of a JSON object
+                encoded as base64.
+
+        Returns:
+            Decoded JSON object.
+        """
+        try:
+            return json.loads(base64.b64decode(data).decode())
+        except (TypeError, RecursionError, ValueError) as error:
+            raise UpsetHelperError(
+                    'could not decode and load data') from error
 
 class Plugin:
     """

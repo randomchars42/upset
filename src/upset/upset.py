@@ -85,13 +85,15 @@ class Upset:
         self._sent_plugins: list[str] = []
         self._sent_files: list[str] = []
 
-    def run(self, path_plan: str, user: str, host: str) -> None:
+    def run(self, path_plan: str,user: str = '', host: str = '',
+            user_plugins: str = '') -> None:
         """Read the plan and execute its task(s).
 
         Args:
             path_plan: The path to the plan.
             user: The user to authenticate with.
             host: The host to run the tasks on.
+            user_plugins: Path to user defined plugins.
         """
 
         try:
@@ -101,9 +103,13 @@ class Upset:
                     user, host)
             self.send_lib(temp_dir, user, host)
 
+            user_plugins_path: pathlib.Path = (
+                    pathlib.Path(user_plugins) if user_plugins != '' else
+                    pathlib.Path('~/.config/upset/plugins'))
+
             task: Task
             for task in plan:
-                self.send_plugin(task, temp_dir, user, host)
+                self.send_plugin(task, temp_dir, user, host, user_plugins_path)
                 self.send_files(task, temp_dir, user, host)
                 self.run_task(task, temp_dir, user, host, password)
         except lib.UpsetError as error:
@@ -165,8 +171,9 @@ class Upset:
         except lib.UpsetSysError as error:
             raise lib.UpsetError('could not send lib') from error
 
+    # pylint: disable=too-many-arguments
     def send_plugin(self, task: Task, temporary_directory: pathlib.Path,
-            user: str, host: str) -> None:
+            user: str, host: str, user_plugins: pathlib.Path) -> None:
         """Send the required plugin if it has not already been sent.
 
         Args:
@@ -175,6 +182,7 @@ class Upset:
                 target machine.
             user: The user to log in with.
             host: The host to execute the task on.
+            user_plugins: Path to user defined plugins.
 
         Raises:
             lib.UpsetError: Raised if the plugin could not be found or the
@@ -183,14 +191,16 @@ class Upset:
         if task.plugin in self._sent_plugins:
             return
 
-        # TODO plugin include path and work with pkg_resources
         logger.info('sending plugin "%s"', task.plugin)
 
-        plugin: pathlib.Path = pathlib.Path(
-                f'plugins/{task.plugin}/{task.plugin}.py')
-
-        if not plugin.exists():
-            raise lib.UpsetError('could not find plugin')
+        try:
+            plugin: pathlib.Path = lib.Helper.localise_plugin(task.plugin,
+                    [pathlib.Path(
+                        pkg_resources.resource_filename(__name__, 'plugins')),
+                    user_plugins])
+        except lib.UpsetHelperError as error:
+            raise lib.UpsetError(
+                    f'could not find plugin "{task.plugin}"') from error
 
         try:
             lib.Sys.run_command(
