@@ -1,5 +1,6 @@
 """Test lib."""
 
+import getpass
 import logging
 import logging.config
 import os
@@ -253,6 +254,170 @@ class TestLibFs(unittest.TestCase):
                 pathlib.Path(self._base_dir / 'a').read_text(encoding='utf-8'),
                 'a\nc="d"\nc')
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
+
+# pylint: disable=too-many-public-methods
+class TestLibSys(unittest.TestCase):
+    """Test Sys from lib."""
+
+    def setUp(self) -> None:
+        """Add test directory and instantiate class."""
+        self._base_dir: pathlib.Path = pathlib.Path('tests/tmp')
+        try:
+            self._base_dir.mkdir()
+        except OSError:
+            logger.debug('could not create "%s"', self._base_dir)
+
+    def tearDown(self) -> None:
+        """Remove files."""
+        for file in self._base_dir.glob('*'):
+            try:
+                if file.is_dir():
+                    file.rmdir()
+                else:
+                    file.unlink()
+            except OSError:
+                logger.debug('could not remove "%s"', file)
+        try:
+            self._base_dir.rmdir()
+        except OSError:
+            logger.debug('could not remove "%s"', self._base_dir)
+
+    def test_run_command(self) -> None:
+        """Run command."""
+        self.assertEqual(
+                lib.Sys.run_command(['/usr/bin/bash', '-c', 'echo Hello']),
+                'Hello')
+
+    def test_run_command_fail(self) -> None:
+        """Fail running a command."""
+        with self.assertRaises(lib.UpsetSysError):
+            lib.Sys.run_command(['/usr/bin/cp', '--fail'])
+
+    def test_build_command_run(self) -> None:
+        """Run command."""
+        self.assertEqual(
+                lib.Sys.run_command(
+                    lib.Sys.build_command(
+                        ['echo "Hello"'])),
+                'Hello')
+
+    def test_build_sudo_command(self) -> None:
+        """Build sudo command sequence."""
+        self.assertEqual(
+                lib.Sys.build_sudo_command(['echo', '"Hello"'], 'password'),
+                ['/usr/bin/bash', '-c',
+                    'echo ZWNobyAicGFzc3dvcmQiIHwgL3Vzci9iaW4vc3VkbyAtUyAtLXBy'\
+                            'b21wdD0gLS0gZWNobyAiSGVsbG8iCg== | '\
+                            '/usr/bin/base64 -d | $SHELL'])
+
+    @unittest.skip('do not ask for sudo password by default')
+    def test_build_sudo_command_run(self) -> None:
+        """Run sudo command sequence."""
+        self.assertEqual(
+                lib.Sys.run_command(
+                    lib.Sys.build_sudo_command(['echo', 'Hello'],
+                        getpass.getpass())),
+                'Hello')
+
+    def test_build_scp_command_to(self) -> None:
+        """Build scp command sequence."""
+        file_a: pathlib.Path = pathlib.Path('a')
+        file_b: pathlib.Path = pathlib.Path('b')
+        self.assertEqual(
+                lib.Sys.build_scp_command(file_a, file_b, 'to', 'test', 'host'),
+                ['/usr/bin/scp', 'a', 'test@host:/b'])
+
+    def test_build_scp_command_from(self) -> None:
+        """Build scp command sequence."""
+        file_a: pathlib.Path = pathlib.Path('a')
+        file_b: pathlib.Path = pathlib.Path('b')
+        self.assertEqual(
+                lib.Sys.build_scp_command(file_a, file_b, 'from', 'test',
+                    'host'),
+                ['/usr/bin/scp', 'test@host:/b', 'a'])
+
+    def test_build_scp_command_run(self) -> None:
+        """Run scp command sequence."""
+        file_a: pathlib.Path = pathlib.Path(self._base_dir / 'a')
+        file_b: pathlib.Path = pathlib.Path(self._base_dir / 'b')
+        file_a.touch()
+        self.assertTrue(file_a.exists())
+        lib.Sys.run_command(
+                lib.Sys.build_scp_command(file_a, file_b))
+        self.assertTrue(file_a.exists())
+        self.assertTrue(file_b.exists())
+
+    def test_make_temporary_directory(self) -> None:
+        """Create a temporary directory."""
+        temp_dir: pathlib.Path = lib.Sys.make_temporary_directory()
+        self.assertTrue(temp_dir.exists())
+        temp_dir.rmdir()
+
+    def test_remove_temporary_directory(self) -> None:
+        """Remove a temporary directory."""
+        temp_dir: pathlib.Path = pathlib.Path(self._base_dir / 'tmp')
+        temp_dir.mkdir()
+        pathlib.Path(self._base_dir / 'tmp' / 'a').touch()
+        self.assertTrue(temp_dir.is_dir())
+        lib.Sys.remove_temporary_directory(temp_dir)
+        self.assertFalse(temp_dir.exists())
+
+# pylint: disable=too-many-public-methods
+class TestLibHelper(unittest.TestCase):
+    """Test Sys from lib."""
+
+    def setUp(self) -> None:
+        """Add test directory and instantiate class."""
+        self._base_dir: pathlib.Path = pathlib.Path('tests/tmp')
+        try:
+            self._base_dir.mkdir()
+        except OSError:
+            logger.debug('could not create "%s"', self._base_dir)
+
+    def tearDown(self) -> None:
+        """Remove files."""
+        for file in self._base_dir.glob('*'):
+            try:
+                if file.is_dir():
+                    file.rmdir()
+                else:
+                    file.unlink()
+            except OSError:
+                logger.debug('could not remove "%s"', file)
+        try:
+            self._base_dir.rmdir()
+        except OSError:
+            logger.debug('could not remove "%s"', self._base_dir)
+
+    def test_create_unique_filename(self) -> None:
+        """Create a unique filename."""
+        name: str = lib.Helper.create_unique_file_name(
+                pathlib.Path('/home/test/a'))
+        self.assertEqual(name, 'home___test___a')
+
+    def test_localise_plugin(self) -> None:
+        """Localise a plugin."""
+        pathlib.Path(self._base_dir / 'a.py').touch()
+        self.assertEqual(
+                lib.Helper.localise_plugin('a', [self._base_dir]),
+                self._base_dir / 'a.py')
+
+    def test_encode_data(self) -> None:
+        """Encode data."""
+        self.assertEqual(
+                lib.Helper.encode_data({'greeting': 'hello'}),
+                'eyJncmVldGluZyI6ICJoZWxsbyJ9')
+
+    def test_encode_data_fail(self) -> None:
+        """Fail encoding data."""
+        with self.assertRaises(lib.UpsetHelperError):
+            lib.Helper.encode_data(pathlib.Path('not/serialiseable'))
+
+    def test_decode_data(self) -> None:
+        """Decode data."""
+        self.assertEqual(
+                lib.Helper.decode_data('eyJncmVldGluZyI6ICJoZWxsbyJ9'),
+                {'greeting': 'hello'})
 
 if __name__ == '__main__':
     unittest.main()
