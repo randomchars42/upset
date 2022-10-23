@@ -6,6 +6,7 @@ __pycache__
 *.egg-info
 .eggs
 *.log
+Pipfile.lock
 
 # Vim
 *.sw[op]

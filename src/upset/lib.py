@@ -19,6 +19,7 @@ import sys
 from typing import Any
 
 logger: logging.Logger = logging.getLogger()
+logger.addHandler(logging.NullHandler())
 
 @dataclasses.dataclass
 class Template():

@@ -13,7 +13,7 @@ import pkg_resources
 from typing import Any
 from upset import lib
 
-logger: logging.Logger = logging.getLogger()
+logger: logging.Logger = logging.getLogger(__name__)
 
 class Task():
     """Describes the minimal variables in a task."""
@@ -324,7 +324,14 @@ def main() -> None:
     # there are only levels 0 to 3
     # everything else will cause the index to be out of bounds
     verbosity_level: int = min(args.verbosity, 3)
-    logger.setLevel(levels[verbosity_level])
+    logging_handler: logging.StreamHandler = logging.StreamHandler()
+    logging_handler.setLevel(logging.DEBUG)
+    logging_formatter = logging.Formatter('%(levelname)s %(name)s %(message)s')
+    logging_handler.setFormatter(logging_formatter)
+    root_logger: logging.Logger = logging.getLogger()
+    root_logger.setLevel(logging.ERROR)
+    root_logger.addHandler(logging_handler)
+    root_logger.setLevel(levels[verbosity_level])
 
     upset: Upset = Upset()
 
