@@ -14,6 +14,7 @@ import socket
 import stat
 import string
 import subprocess
+import sys
 
 from typing import Any
 
@@ -567,27 +568,61 @@ class Helper:
                     'could not decode and load data') from error
 
 class Plugin:
-    """
+    """Baseclass for plugins providing data decoded from the call.
 
     Attributes:
-        _target: Variable that
+        data: The data that was given by the main process.
+
+    Examples:
+        You can either use this class like this::
+
+            import lib
+
+            class MyPlugin(lib.Plugin):
+                def run(self) -> None:
+                    # the data defined in the plugin is stored under
+                    # `self.data['variables']`
+                    print(self.data['variables']['var_a'])
+                    # files are stored under:
+                    # `self.data['files']`
+                    for label, file in self.data['files']:
+                        print(f'File with label "{label}" has name "{file}" on'\
+                                the target machine)
+                    # the special variable defined by `Task.foreach_variable`
+                    # and `Task.foreach` is stored under the name defined in
+                    # `Task.foreach_variable`, e.g., for
+                    # `Task.foreach_variable = 'user'` and
+                    # `Task.foreach = ['user1', 'user2']`
+                    print(f'doing this for user: "{self.data['user']}"')
+                    # prints "user1" when the script is first executed
+                    # and "user2" on the second run
+
+        Or you can dispense with classes altogether::
+
+            import lib
+
+            data = lib.Plugin.get_data()
+            print(data['variables']['var_a'])
+            for label, file in data['files']:
+                print(f'File with label "{label}" has name "{file}" on'\
+                        the target machine)
+            print(f'doing this for user: "{data['user']}"')
     """
 
     def __init__(self) -> None:
         """Initialise and log it."""
         logger.info('loading %s', self.__class__.__name__)
+        self.data = Plugin.get_data()
 
     def run(self) -> None:
         """Entry point."""
-        params = self.load_task()
 
     @staticmethod
-    def load_task() -> dict[str, str]:
-        """Load task.
+    def get_data() -> dict[str, Any]:
+        """Get data for the task.
 
         Returns:
-            A.
+            A dictionary containing the data.
         """
-        logger.debug('task')
-        return dict({'var1': 'var2'})
+        return Helper.decode_data(sys.argv[1])
 

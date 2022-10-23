@@ -401,5 +401,23 @@ class TestLibHelper(unittest.TestCase):
         self.assertEqual(
                 lib.Helper.localise_plugin('a', [self._base_dir]),
                 self._base_dir / 'a.py')
+
+    def test_encode_data(self) -> None:
+        """Encode data."""
+        self.assertEqual(
+                lib.Helper.encode_data({'greeting': 'hello'}),
+                'eyJncmVldGluZyI6ICJoZWxsbyJ9')
+
+    def test_encode_data_fail(self) -> None:
+        """Fail encoding data."""
+        with self.assertRaises(lib.UpsetHelperError):
+            lib.Helper.encode_data(pathlib.Path('not/serialiseable'))
+
+    def test_decode_data(self) -> None:
+        """Decode data."""
+        self.assertEqual(
+                lib.Helper.decode_data('eyJncmVldGluZyI6ICJoZWxsbyJ9'),
+                {'greeting': 'hello'})
+
 if __name__ == '__main__':
     unittest.main()

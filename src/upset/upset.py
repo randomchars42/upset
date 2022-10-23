@@ -248,7 +248,7 @@ class Upset:
     # pylint: disable=too-many-arguments
     def run_task(self, task: Task, temporary_directory: pathlib.Path,
             user: str, host: str, password: str,
-            python: str = '/usr/bin/python3') -> None:
+            python: str = '/usr/bin/python3') -> str:
         """Run the task on the target machine.
 
         Args:
@@ -263,15 +263,50 @@ class Upset:
         Raises:
             lib.UpsetError: Raised if the transfer failed.
         """
+        output: str = ''
         try:
-            lib.Sys.run_command(
-                    lib.Sys.build_sudo_command(
-                        [python,
-                            str(temporary_directory / f'{task.plugin}.py')],
-                        password, user, host))
+            for for_variable in task.foreach:
+                output += lib.Sys.run_command(
+                        lib.Sys.build_sudo_command([
+                            python,
+                            str(temporary_directory / f'{task.plugin}.py'),
+                            lib.Helper.encode_data(
+                                self.transform_task_to_data(task,
+                                    for_variable))],
+                            password, user, host))
+                output += '\n'
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
                     f'could not run plugin "{task.plugin}"') from error
+        # return for testing / debugging
+        return output
+
+    def transform_task_to_data(self, task: Task, for_variable: str) -> Any:
+        """Transform the information in a task for the remote plugin.
+
+        Creates an additional key from the name specified in
+        `Task.foreach_variable` and the value passed in as `for_variable`.
+
+        Translates file names to the names on the remote machine using the same
+        algorithm as `upset.send_files()`.
+
+        Args:
+            task: The task to transform.
+            for_variable: The current value of `Task.foreach` which will become
+                the value of the new key wich name is specified by
+                `Task.foreach_variable`.
+        """
+        data: Any = {
+                task.foreach_variable: for_variable,
+                'variables': task.variables.copy(),
+                'files': task.files.copy()
+                }
+
+        for name, file in data['files'].items():
+            data['files'][name] = lib.Helper.create_unique_file_name(
+                    pathlib.Path(file))
+
+        return data
 
 def main() -> None:
     """Reads cli arguments and runs the main loop."""

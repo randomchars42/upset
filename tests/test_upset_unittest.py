@@ -1,5 +1,7 @@
 """Test Upset."""
 
+import getpass
+import json
 import logging
 import logging.config
 import pathlib
@@ -106,6 +108,42 @@ class TestUpsetUpset(unittest.TestCase):
         self.assertTrue(pathlib.Path(
             self._base_dir / lib.Helper.create_unique_file_name(local_b)
             ).exists())
+
+    def test_transform_task_to_data(self) -> None:
+        """Transform a task to data that can be used in the plugin."""
+        self.assertEqual(
+                json.dumps(self._upset.transform_task_to_data(self._task, 'a')),
+                json.dumps({
+                    "file": "a",
+                    "variables": {
+                        "var_1": "Var 1",
+                        "var_2": "Var 2"
+                        },
+                    "files": {
+                        "template_a": '___'.join(pathlib.Path(self._base_dir /
+                            'template_a').resolve().parts[1:]),
+                        "template_b": '___'.join(pathlib.Path(self._base_dir /
+                            'template_b').resolve().parts[1:]),
+                        }
+                    }))
+
+    @unittest.skip('do not ask for sudo password by default')
+    def test_run_plugin(self) -> None:
+        """Run a plugin."""
+        fakeplugin: pathlib.Path = self._base_dir / 'fakeplugin.py'
+        fakeplugin.write_text(
+                'import base64\n'\
+                'import json\n'\
+                'import sys\n'\
+                'print('\
+                'json.loads(base64.b64decode(sys.argv[1]).decode())["file"])',
+                encoding='utf-8')
+        self.assertEqual(
+                self._upset.run_task(
+                    self._task,
+                    self._base_dir,
+                    user='', host='', password=getpass.getpass()),
+                'a\nb\n')
 
 if __name__ == '__main__':
     unittest.main()
