@@ -28,12 +28,12 @@ class Task():
 
     def __iter__(self) -> Any:
         yield from {
-            "name": self.name,
-            "plugin": self.plugin,
-            "foreach": self.foreach,
-            "foreach_variable": self.foreach_variable,
-            "variables": self.variables,
-            "files": self.files
+            'name': self.name,
+            'plugin': self.plugin,
+            'foreach': self.foreach,
+            'foreach_variable': self.foreach_variable,
+            'variables': self.variables,
+            'files': self.files
         }.items()
 
     def __str__(self) -> str:
@@ -74,10 +74,10 @@ Tasklist = list[Task]
 class Upset:
     """
     Attributes:
-        _sent_plugins: A list of plugins already sent so the files need not be
-            sent more than once.
-        _sent_files: A list of files already sent so the files need not be
-            sent more than once.
+        _sent_plugins: A list of plugins already sent so the files need
+            not be sent more than once.
+        _sent_files: A list of files already sent so the files need not
+            be sent more than once.
     """
 
     def __init__(self) -> None:
@@ -151,8 +151,8 @@ class Upset:
         """Send the library if it has not already been sent.
 
         Args:
-            temporary_directory: The path to the temporary_directory on the
-                target machine.
+            temporary_directory: The path to the temporary_directory on
+                the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
 
@@ -178,15 +178,15 @@ class Upset:
 
         Args:
             task: The task that requires the plugin.
-            temporary_directory: The path to the temporary_directory on the
-                target machine.
+            temporary_directory: The path to the temporary_directory on
+                the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
             user_plugins: Path to user defined plugins.
 
         Raises:
-            lib.UpsetError: Raised if the plugin could not be found or the
-                transfer failed.
+            lib.UpsetError: Raised if the plugin could not be found or
+                the transfer failed.
         """
         if task.plugin in self._sent_plugins:
             return
@@ -216,12 +216,12 @@ class Upset:
 
     def send_files(self, task: Task, temporary_directory: pathlib.Path,
             user: str, host: str) -> None:
-        """Send files required by the task if they have not already been sent.
+        """Send files to target if they have not already been sent.
 
         Args:
             task: The task that requires the files.
-            temporary_directory: The path to the temporary_directory on the
-                target machine.
+            temporary_directory: The path to the temporary_directory on
+                the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
 
@@ -253,8 +253,8 @@ class Upset:
 
         Args:
             task: The task to run.
-            temporary_directory: The path to the temporary_directory on the
-                target machine.
+            temporary_directory: The path to the temporary_directory on
+                the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
             password: The password to use `sudo` on the target machine.
@@ -285,16 +285,17 @@ class Upset:
         """Transform the information in a task for the remote plugin.
 
         Creates an additional key from the name specified in
-        `Task.foreach_variable` and the value passed in as `for_variable`.
+        `Task.foreach_variable` and the value passed in as
+        `for_variable`.
 
-        Translates file names to the names on the remote machine using the same
-        algorithm as `upset.send_files()`.
+        Translates file names to the names on the remote machine using
+        the same algorithm as `upset.send_files()`.
 
         Args:
             task: The task to transform.
-            for_variable: The current value of `Task.foreach` which will become
-                the value of the new key wich name is specified by
-                `Task.foreach_variable`.
+            for_variable: The current value of `Task.foreach` which
+                will become the value of the new key wich name is
+                specified by `Task.foreach_variable`.
         """
         data: Any = {
                 task.foreach_variable: for_variable,
