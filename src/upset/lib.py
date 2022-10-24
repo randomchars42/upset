@@ -27,8 +27,8 @@ class Template():
 
     Attributes:
         string: The file with `$variables` to use as content.
-        substitutes: A dictionary with the variable names as keys and their
-            substitutes as values.
+        substitutes: A dictionary with the variable names as keys and
+            their substitutes as values.
     """
     file: pathlib.Path
     substitutes: dict[str, str]
@@ -38,8 +38,10 @@ class PermissionSet():
     """Holds a basic representation of UNIX permissions.
 
     Attributes:
-        owner: The file owner (existence will be checked; `''` to leave as is).
-        group: The group (existence will not be checked; `''` to leave as is).
+        owner: The file owner (existence will be checked; `''` to leave
+            as is).
+        group: The group (existence will not be checked; `''` to leave
+            as is).
         mode: The file mode (octal value; default `0o600`).
     """
     owner: str = ''
@@ -103,7 +105,8 @@ class Fs:
         if backup:
             Fs.backup(path)
 
-        # the file might have been moved so there is nothing left to be done
+        # the file might have been moved so there is nothing left to be
+        # done
         if not path.exists():
             return
 
@@ -122,22 +125,24 @@ class Fs:
             mode: str = 'force', backup: bool = True) -> None:
         """Make sure a file exists.
 
-        If the file does not exist it will be created by interpolating the
-        template string. If the file exists and `force_template` is `True`
-        (default) it will be replaced using the template string. If anything but
-        a symlink exists it will be backed up (see `Fs.backup()`) depending on
-        `backup`.
+        If the file does not exist it will be created by interpolating
+        the template string. If the file exists and `force_template` is
+        `True` (default) it will be replaced using the template string.
+        If anything but a symlink exists it will be backed up (see
+        `Fs.backup()`) depending on `backup`.
 
         Args:
             path: The path to ensure a file.
             template: A template to be used to fill the file with.
             permissions: The permissions of the file.
-            mode: What to do if the file exists ['asis'|'force'|'update']?
+            mode: What to do if the file exists
+                ['asis'|'force'|'update']?
                 'as_is': will leave the file as is if it exists.
                 'force': will re-write the file.
-                'update': If the source is newer the target will be replaced
-                    (default).
-            backup: Create a backup (see `Fs.backup()`; default is `True`).
+                'update': If the source is newer the target will be
+                    replaced (default).
+            backup: Create a backup (see `Fs.backup()`; default is
+                `True`).
 
         Raises:
             UpsetFsError: If filesystem interaction fails.
@@ -184,14 +189,15 @@ class Fs:
             backup: bool = True) -> None:
         """Make sure symlink exists.
 
-        If the symlink does not exist it will be created. If anything but
-        a symlink exists it will be backed up (see `Fs.backup()`) depending on
-        `backup`.
+        If the symlink does not exist it will be created. If anything
+        but a symlink exists it will be backed up (see `Fs.backup()`)
+        depending on `backup`.
 
         Args:
             path: The path to ensure a symlink exists.
             target: The target of the symlink.
-            backup: Create a backup (see `Fs.backup()`; default is `True`).
+            backup: Create a backup (see `Fs.backup()`; default is
+                `True`).
 
         Raises:
             UpsetFsError: If filesystem interaction fails.
@@ -213,14 +219,15 @@ class Fs:
             backup: bool) -> None:
         """Make sure directory exists.
 
-        If the directory does not exist it will be created. If anything but
-        a symlink exists it will be backed up (see `Fs.backup()`) depending on
-        `backup`.
+        If the directory does not exist it will be created. If anything
+        but a symlink exists it will be backed up (see `Fs.backup()`)
+        depending on `backup`.
 
         Args:
             path: The path to ensure a symlink exists.
             permissions: The permissions of the file.
-            backup: Create a backup (see `Fs.backup()`; default is `True`).
+            backup: Create a backup (see `Fs.backup()`; default is
+                `True`).
 
         Raises:
             UpsetFsError: If filesystem interaction fails.
@@ -293,10 +300,11 @@ class Fs:
         Args:
             path: The path to ensure a file.
             text: The text that must occur in the file.
-            insert_at: The position where the text must occur. Must be a valid
-                regular expression. Default is to much the end of the file
-                appending the text to the file.
-            backup: Create a backup (see `Fs.backup()`; default is `True`).
+            insert_at: The position where the text must occur. Must be
+                a valid regular expression. Default is to much the end
+                of the file appending the text to the file.
+            backup: Create a backup (see `Fs.backup()`; default is
+                `True`).
 
         Raises:
             UpsetFsError: If filesystem interaction fails.
@@ -335,7 +343,8 @@ class Sys:
         """Run a command as a subprocess.
 
         Args:
-            command_parts: The command with parameters, each in its own string.
+            command_parts: The command with parameters, each in its own
+                string.
 
         Returns:
             Output of the command (without final `"\n"`).
@@ -356,42 +365,47 @@ class Sys:
             user: str = '', host: str = '') -> list[str]:
         """Prepare a command to be run with sudo non-interactively.
 
-        Achieves this by making `sudo` read the password from `stdin` (`-S`) and
-        without a promt (`--prompt=`). The password is `echo`ed and piped into
-        `sudo`s `stdin`.
+        Achieves this by making `sudo` read the password from `stdin`
+        (`-S`) and without a promt (`--prompt=`). The password is
+        `echo`ed and piped into `sudo`s `stdin`.
 
         To avoid having to deal with escaping issues the sequence
-        `echo "{password}" | sudo -S --prompt= -- {command}` is encoded as
-        `base64` (as suggested by "ThoriumBR" on
+        `echo "{password}" | sudo -S --prompt= -- {command}` is encoded
+        as `base64` (as suggested by "ThoriumBR" on
         <https://serverfault.com/questions/625641>).
 
         At the target the encoded sequence gets decoded by piping it to
         `base64 -d` and evaluating the output in the `$SHELL`.
 
-        Beware: The command parts are simply joined with `" ".join(command)`.
-        The behaviour might differ from `subprocess.check_output(command)`!
+        Beware: The command parts are simply joined with
+        `" ".join(command)`.
+        The behaviour might differ from
+        `subprocess.check_output(command)`!
 
         Args:
-            command_parts: The command to run with its parameters, each in its
-                own string.
+            command_parts: The command to run with its parameters,
+                each in its own string.
             password: The password to use with `sudo`.
-            user: The user to log in with (see `Sys.build_command()` for
-                default behaviour).
-            host: The host to execute the task on (see `Sys.build_command()` for
-                default behaviour).
+            user: The user to log in with (see `Sys.build_command()`
+                for default behaviour).
+            host: The host to execute the task on (see
+                `Sys.build_command()` for default behaviour).
 
         Returns:
-            A command that can be passed to a shell via `Sys.run_command()`.
+            A command that can be passed to a shell via
+            `Sys.run_command()`.
         """
         command: str = ' '.join(command_parts)
-        # base64.b64encode() needs a byte-like argument so the string is first
-        # "encoded"
+        # base64.b64encode() needs a byte-like argument so the string
+        # is first "encoded"
         encoded_command: bytes = base64.b64encode(
-                f'echo "{password}" | /usr/bin/sudo -S --prompt= -- {command}\n'.encode())
+                f'echo "{password}" | /usr/bin/sudo -S --prompt= -- '
+                    f'{command}\n'.encode())
         # the result is a bytestream so it is "decoded" to a string
         # but it is still base64-gibberish
         return Sys.build_command(
-                [f'echo {encoded_command.decode()} | /usr/bin/base64 -d | $SHELL'],
+                [f'echo {encoded_command.decode()} | /usr/bin/base64 -d |'
+                    ' $SHELL'],
                 user, host)
 
 
@@ -401,8 +415,8 @@ class Sys:
         """Run a command on a remote host.
 
         Args:
-            command_parts: The command with parameters to run on `host`, each as
-                its own string.
+            command_parts: The command with parameters to run on `host`,
+                each as its own string.
         """
         if user == '':
             user = getpass.getuser()
@@ -419,18 +433,18 @@ class Sys:
             direction: str = 'to', user: str = '', host: str = '') -> list[str]:
         """Build a command to copy files (from / to a remote machine).
 
-        Though it can be used to move files locally this function is meant to
-        copy files between hosts using scp. The ability to move files locally is
-        used for debugging.
+        Though it can be used to move files locally this function is
+        meant to copy files between hosts using scp. The ability to
+        move files locally is used for debugging.
 
         Args:
             local_path: Path on the local machine.
             remote_path: Path on the remote machine.
             direction: Copy 'to' remote or 'from' remote.
-            user: The user to log in with (see `Sys.build_command()` for
-                default behaviour).
-            host: The host to execute the task on (see `Sys.build_command()` for
-                default behaviour).
+            user: The user to log in with (see `Sys.build_command()`
+                for default behaviour).
+            host: The host to execute the task on (see
+                `Sys.build_command()` for default behaviour).
         """
         direction = direction.lower()
 
@@ -459,7 +473,7 @@ class Sys:
             source = remote
             destination = local
 
-        return [copy, source, destination]
+        return [copy, '-p', source, destination]
 
     @staticmethod
     def make_temporary_directory(user: str = '',
@@ -467,10 +481,10 @@ class Sys:
         """Create a temporary directory for `user` on `host`.
 
         Args:
-            user: The user to log in with (see `Sys.build_command()` for
-                default behaviour).
-            host: The host to execute the task on (see `Sys.build_command()` for
-                default behaviour).
+            user: The user to log in with (see `Sys.build_command()`
+                for default behaviour).
+            host: The host to execute the task on (see
+                `Sys.build_command()` for default behaviour).
 
         Returns:
             The path of the temporary directory.
@@ -489,10 +503,10 @@ class Sys:
 
         Args:
             directory: The path to the temporary directory.
-            user: The user to log in with (see `Sys.build_command()` for
-                default behaviour).
-            host: The host to execute the task on (see `Sys.build_command()` for
-                default behaviour).
+            user: The user to log in with (see `Sys.build_command()`
+                for default behaviour).
+            host: The host to execute the task on (see
+                `Sys.build_command()` for default behaviour).
         """
         try:
             Sys.run_command(
@@ -558,8 +572,8 @@ class Helper:
         """Decode data passed as a base64 string to a JSON object.
 
         Args:
-            data: Data to decode, must be a valid string of a JSON object
-                encoded as base64.
+            data: Data to decode, must be a valid string of a JSON
+                object encoded as base64.
 
         Returns:
             Decoded JSON object.
@@ -589,14 +603,16 @@ class Plugin:
                     # files are stored under:
                     # `self.data['files']`
                     for label, file in self.data['files']:
-                        print(f'File with label "{label}" has name "{file}" on'\
-                                the target machine)
-                    # the special variable defined by `Task.foreach_variable`
-                    # and `Task.foreach` is stored under the name defined in
+                        print(f'File with label "{label}" has name'
+                            f'"{file}" on the target machine')
+                    # the special variable defined by
+                    # `Task.foreach_variable`
+                    # and `Task.foreach` is stored under the name
+                    # defined in
                     # `Task.foreach_variable`, e.g., for
                     # `Task.foreach_variable = 'user'` and
                     # `Task.foreach = ['user1', 'user2']`
-                    print(f'doing this for user: "{self.data['user']}"')
+                    print(f'doing this for: "{self.data['user']}"')
                     # prints "user1" when the script is first executed
                     # and "user2" on the second run
 
@@ -607,8 +623,8 @@ class Plugin:
             data = lib.Plugin.get_data()
             print(data['variables']['var_a'])
             for label, file in data['files']:
-                print(f'File with label "{label}" has name "{file}" on'\
-                        the target machine)
+                print(f'File with label "{label}" has name "{file}" on'
+                        f'the target machine')
             print(f'doing this for user: "{data['user']}"')
     """
 
