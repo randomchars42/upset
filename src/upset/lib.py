@@ -457,7 +457,7 @@ class Sys:
             source = remote
             destination = local
 
-        return [copy, source, destination]
+        return [copy, '-p', source, destination]
 
     @staticmethod
     def make_temporary_directory(user: str = '',
