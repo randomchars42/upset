@@ -48,11 +48,16 @@ Examples::
                     "permissions": ["$user", "", 0o600],
                     "backup": true,
                 },
-                # describe a directory
+                # decribe a file that must exist and contain defined
+                # text
+                # can be used to search and replace text (regular
+                # expression) in a file
+                # the default is to insert the line at the end ("")
                 {
                     "path": "/home/$user/dir",
-                    "ensure": "dir",
-                    "permissions": ["$user", "", 0o600],
+                    "ensure": "in_file",
+                    "text": "some text",
+                    "insert_at": "",
                     "backup": true,
                 },
                 # describe a symlink
@@ -123,6 +128,8 @@ class Paths(lib.Plugin):
                     self.ensure_dir(subtask)
                 case 'symlink':
                     self.ensure_symlink(subtask)
+                case 'in_file':
+                    self.ensure_in_file(subtask)
                 case 'other':
                     raise lib.UpsetError(
                             f'no such subtask "{subtask["ensure"]}"')
@@ -201,6 +208,20 @@ class Paths(lib.Plugin):
         lib.Fs.ensure_link(
                 pathlib.Path(subtask['path']),
                 pathlib.Path(subtask['target']),
+                subtask['backup'])
+
+    def ensure_in_file(self, subtask: Any) -> None:
+        """Ensure certain text is contained by a file.
+
+        Args:
+            subtask: The object in the `Task.variables.paths` list.
+        """
+        if not 'insert_at' in subtask or subtask['insert_at'] == '':
+            subtask['insert_at'] = r'\Z'
+        lib.Fs.ensure_in_file(
+                pathlib.Path(subtask['path']),
+                subtask['text'],
+                subtask['insert_at'],
                 subtask['backup'])
 
 if __name__ == '__main__':

@@ -160,5 +160,58 @@ class TestPluginsPaths(unittest.TestCase):
         self.assertTrue(pathlib.Path(self._base_dir / 'a').is_dir())
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
 
+    def test_ensure_in_file_append(self) -> None:
+        """Ensure text occurs in a file."""
+        pathlib.Path(self._base_dir / 'a').write_text('a',
+                encoding='utf-8')
+        lib.Fs.ensure_in_file(pathlib.Path(self._base_dir / 'a'),
+                '\nc="b"', backup = True)
+        self._paths.ensure_in_file({
+            'path': str(self._base_dir / 'a'),
+            'ensure': 'in_file',
+            'text': '\nc="b"',
+            'insert_at': '',
+            'permissions': ['', '', 0o644],
+            'backup': True
+            })
+        self.assertEqual(
+                pathlib.Path(self._base_dir / 'a').read_text(encoding='utf-8'),
+                'a\nc="b"')
+        self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
+
+    def test_ensure_in_file_present(self) -> None:
+        """Do nothing as the text is already in the file."""
+        pathlib.Path(self._base_dir / 'a').write_text('a\nc="b"\nc',
+                encoding='utf-8')
+        self._paths.ensure_in_file({
+            'path': str(self._base_dir / 'a'),
+            'ensure': 'in_file',
+            'text': '\nc="b"',
+            'insert_at': '',
+            'permissions': ['', '', 0o644],
+            'backup': True
+            })
+        self.assertEqual(
+                pathlib.Path(self._base_dir / 'a').read_text(encoding='utf-8'),
+                'a\nc="b"\nc')
+        self.assertFalse(pathlib.Path(self._base_dir / 'a~').exists())
+
+    def test_ensure_in_file_replace(self) -> None:
+        """Do nothing as the text is already in the file."""
+        pathlib.Path(self._base_dir / 'a').write_text('a\nc="b"\nc',
+                encoding='utf-8')
+        self._paths.ensure_in_file({
+            'path': str(self._base_dir / 'a'),
+            'ensure': 'in_file',
+            'text': '\nc="d"',
+            'insert_at': '\nc="b"',
+            'permissions': ['', '', 0o644],
+            'backup': True
+            })
+        self.assertEqual(
+                pathlib.Path(self._base_dir / 'a').read_text(encoding='utf-8'),
+                'a\nc="d"\nc')
+        self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
+
 if __name__ == '__main__':
     unittest.main()
