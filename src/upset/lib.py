@@ -302,6 +302,8 @@ class Fs:
             UpsetFsError: If filesystem interaction fails.
         """
         try:
+            if not path.exists():
+                path.touch()
             haystack: str = path.read_text(encoding='utf-8')
         except OSError as error:
             raise UpsetFsError(
