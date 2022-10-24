@@ -38,13 +38,13 @@ class PermissionSet():
     """Holds a basic representation of UNIX permissions.
 
     Attributes:
-        mod: The file mode (octal value; default `0o600`).
         owner: The file owner (existence will be checked; `''` to leave as is).
         group: The group (existence will not be checked; `''` to leave as is).
+        mode: The file mode (octal value; default `0o600`).
     """
-    mode: int = 0o600
     owner: str = ''
     group: str = ''
+    mode: int = 0o600
 
 
 class UpsetError(Exception):
