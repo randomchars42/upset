@@ -255,6 +255,22 @@ class TestLibFs(unittest.TestCase):
                 'a\nc="d"\nc')
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
 
+    def test_ensure_in_file_no_file_append(self) -> None:
+        """Ensure text occurs in a non-existent file."""
+        lib.Fs.ensure_in_file(pathlib.Path(self._base_dir / 'a'),
+                r'\nc="b"', backup = True)
+        self.assertEqual(
+                pathlib.Path(self._base_dir / 'a').read_text(encoding='utf-8'),
+                '\nc="b"')
+
+    def test_ensure_in_file_no_file_replace(self) -> None:
+        """Do nothing because no text occurs in a non-existent file."""
+        lib.Fs.ensure_in_file(pathlib.Path(self._base_dir / 'a'),
+                r'c="d"', insert_at = r'c="b"', backup = True)
+        self.assertEqual(
+                pathlib.Path(self._base_dir / 'a').read_text(encoding='utf-8'),
+                '')
+
 # pylint: disable=too-many-public-methods
 class TestLibSys(unittest.TestCase):
     """Test Sys from lib."""
