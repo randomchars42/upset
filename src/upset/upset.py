@@ -21,9 +21,8 @@ class Task():
     def __init__(self, name: str) -> None:
         self.name: str = name
         self.plugin: str = ''
-        self.foreach: list[str] = []
-        self.foreach_variable: str = ''
-        self.variables: dict[str, str] = {}
+        self.foreach: list[dict[str, str]] = []
+        self.variables: dict[str, Any] = {}
         self.files: dict[str, str] = {}
 
     def __iter__(self) -> Any:
@@ -31,7 +30,6 @@ class Task():
             'name': self.name,
             'plugin': self.plugin,
             'foreach': self.foreach,
-            'foreach_variable': self.foreach_variable,
             'variables': self.variables,
             'files': self.files
         }.items()
@@ -110,8 +108,13 @@ class Upset:
             task: Task
             for task in plan:
                 self.send_plugin(task, temp_dir, user, host, user_plugins_path)
-                self.send_files(task, temp_dir, user, host)
-                self.run_task(task, temp_dir, user, host, password)
+                if len(task.foreach) == 0:
+                    task.foreach = [{}]
+                for var in task.foreach:
+                    expanded_task: Task = self.expand_task(task, var)
+                    self.send_files(expanded_task, temp_dir, user, host)
+                    self.run_task(expanded_task, temp_dir, user, host, password,
+                            var)
         except lib.UpsetError as error:
             logger.error(error)
         finally:
@@ -170,6 +173,51 @@ class Upset:
                         direction='to', user=user, host=host))
         except lib.UpsetSysError as error:
             raise lib.UpsetError('could not send lib') from error
+
+    def expand_task(self, task: Task, var: dict) -> Task:
+        """Expand all variables named in `var.keys()`.
+
+        Args:
+            task: The task to expand.
+            var: The variables to replace.
+        """
+        if not var:
+            return task
+
+        # copy only
+        new_task: Task = Task(task.name)
+        new_task.plugin = task.plugin
+        # expand
+        new_task.variables = self.expand_task_leaves(task.variables, var)
+        new_task.files = self.expand_task_leaves(task.files, var)
+
+        return new_task
+
+    def expand_task_leaves(self, leaf: Any, var: dict) -> Any:
+        """Traverse lists and dictionarys and expand variables.
+
+        Args:
+            leaf: Portion of a JSON object.
+            var: String to replace `"{}"` or dictionary containing all
+                necessary keys.
+        """
+        try:
+            if isinstance(leaf, str):
+                return leaf.format(**var)
+            elif isinstance(leaf, list):
+                return [self.expand_task_leaves(item, var) for item in leaf]
+            elif isinstance(leaf, dict):
+                return {self.expand_task_leaves(key, var):
+                        self.expand_task_leaves(value, var)
+                        for key, value in leaf}
+            else:
+                return leaf
+        except KeyError as error:
+            raise lib.UpsetError(
+                    f'No key in "{var}" to format "{leaf}"') from error
+        except IndexError as error:
+            raise lib.UpsetError(
+                    f'No substitute in "{var}" to format "{leaf}"') from error
 
     # pylint: disable=too-many-arguments
     def send_plugin(self, task: Task, temporary_directory: pathlib.Path,
@@ -247,7 +295,7 @@ class Upset:
 
     # pylint: disable=too-many-arguments
     def run_task(self, task: Task, temporary_directory: pathlib.Path,
-            user: str, host: str, password: str,
+            user: str, host: str, password: str, for_task: dict[str, str],
             python: str = '/usr/bin/python3') -> str:
         """Run the task on the target machine.
 
@@ -263,25 +311,21 @@ class Upset:
         Raises:
             lib.UpsetError: Raised if the transfer failed.
         """
-        output: str = ''
         try:
-            for for_variable in task.foreach:
-                output += lib.Sys.run_command(
-                        lib.Sys.build_sudo_command([
-                            python,
-                            str(temporary_directory / f'{task.plugin}.py'),
-                            lib.Helper.encode_data(
-                                self.transform_task_to_data(task,
-                                    for_variable))],
-                            password, user, host))
-                output += '\n'
+            return lib.Sys.run_command(
+                    lib.Sys.build_sudo_command([
+                        python,
+                        str(temporary_directory / f'{task.plugin}.py'),
+                        lib.Helper.encode_data(
+                            self.transform_task_to_data(task,
+                                for_task))],
+                        password, user, host))
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
                     f'could not run plugin "{task.plugin}"') from error
         # return for testing / debugging
-        return output
 
-    def transform_task_to_data(self, task: Task, for_variable: str) -> Any:
+    def transform_task_to_data(self, task: Task, for_variable: dict) -> Any:
         """Transform the information in a task for the remote plugin.
 
         Creates an additional key from the name specified in
@@ -293,21 +337,20 @@ class Upset:
 
         Args:
             task: The task to transform.
-            for_variable: The current value of `Task.foreach` which
-                will become the value of the new key wich name is
-                specified by `Task.foreach_variable`.
+            for_variable: The current value(s) of `Task.foreach` which
+                will be added to the task.
         """
-        data: Any = {
-                task.foreach_variable: for_variable,
-                'variables': task.variables.copy(),
-                'files': task.files.copy()
-                }
-
-        for name, file in data['files'].items():
-            data['files'][name] = lib.Helper.create_unique_file_name(
+        for name, file in task.files.items():
+            task.files[name] = lib.Helper.create_unique_file_name(
                     pathlib.Path(file))
 
-        return data
+        return {
+                'name': task.name,
+                'plugin': task.plugin,
+                'variables': task.variables,
+                'files': task.files,
+                'for': for_variable
+                }
 
 def main() -> None:
     """Reads cli arguments and runs the main loop."""

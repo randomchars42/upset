@@ -30,17 +30,16 @@ class TestUpsetUpset(unittest.TestCase):
         self._upset: upset.Upset = upset.Upset()
         self._base_dir: pathlib.Path = pathlib.Path('tests/tmp')
         self._task: upset.Task = upset.Task.from_json({
-                "name": "faketask",
-                "plugin": "fakeplugin",
-                "variables": {
-                    "var_1": "Var 1",
-                    "var_2": "Var 2"
+                'name': 'faketask',
+                'plugin': 'fakeplugin',
+                'variables': {
+                    'var_1': 'Var 1',
+                    'var_2': 'Var 2'
                     },
-                "foreach_variable": "file",
-                "foreach": ["a", "b"],
-                "files": {
-                    "template_a": str(self._base_dir / 'template_a'),
-                    "template_b": str(self._base_dir / 'template_b'),
+                'foreach': [{'file': 'a'}, {'file': 'b'}],
+                'files': {
+                    'template_a': str(self._base_dir / 'template_a'),
+                    'template_b': str(self._base_dir / 'template_b'),
                     }
                 })
         try:
@@ -112,20 +111,32 @@ class TestUpsetUpset(unittest.TestCase):
     def test_transform_task_to_data(self) -> None:
         """Transform a task to data that can be used in the plugin."""
         self.assertEqual(
-                json.dumps(self._upset.transform_task_to_data(self._task, 'a')),
+                json.dumps(self._upset.transform_task_to_data(self._task,
+                    {'file': 'a'})),
                 json.dumps({
-                    "file": "a",
-                    "variables": {
-                        "var_1": "Var 1",
-                        "var_2": "Var 2"
+                    'name': 'faketask',
+                    'plugin': 'fakeplugin',
+                    'variables': {
+                        'var_1': 'Var 1',
+                        'var_2': 'Var 2'
                         },
-                    "files": {
-                        "template_a": '___'.join(pathlib.Path(self._base_dir /
+                    'files': {
+                        'template_a': '___'.join(pathlib.Path(self._base_dir /
                             'template_a').resolve().parts[1:]),
-                        "template_b": '___'.join(pathlib.Path(self._base_dir /
+                        'template_b': '___'.join(pathlib.Path(self._base_dir /
                             'template_b').resolve().parts[1:]),
-                        }
+                        },
+                    'for': {'file': 'a'},
                     }))
+
+    def test_expand_task_dummy(self) -> None:
+        """`expand_task()` does not expand on empty var."""
+        self.assertEqual(
+                self._upset.expand_task(self._task, {}),
+                self._task)
+
+    def test_walk_task_string(self) -> None:
+        """Expand task recursively."""
 
     @unittest.skip('do not ask for sudo password by default')
     def test_run_plugin(self) -> None:
