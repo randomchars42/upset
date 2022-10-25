@@ -93,6 +93,12 @@ class TestUpsetUpset(unittest.TestCase):
 
     def test_send_plugin(self) -> None:
         """Send plugin."""
+        pathlib.Path(self._base_dir / 'tmp').mkdir()
+        pathlib.Path(self._base_dir / 'tmp' / 'fakeplugin.py').touch()
+        self._upset.send_plugin(self._task, self._base_dir, user='', host='',
+                user_plugins=self._base_dir / 'tmp')
+        self.assertTrue(pathlib.Path(self._base_dir / 'fakeplugin.py').exists())
+        pathlib.Path(self._base_dir / 'tmp' / 'fakeplugin.py').unlink()
 
     def test_send_files(self) -> None:
         """Send files."""
