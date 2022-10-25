@@ -36,35 +36,13 @@ class TestPluginsPaths(unittest.TestCase):
             'name': 'ensure my paths',
             'plugin': 'paths',
             'variables': {
-                'paths': [
-                    {
-                        'path': '/home/$user/file',
-                        'ensure': 'file',
-                        'template': 'template2',
-                        'mode': 'update',
-                        'permissions': ['$user', '', 0o600],
-                        'backup': True,
-                    },
-                    {
-                        'path': '/home/$user/dir',
-                        'ensure': 'dir',
-                        'permissions': ['$user', '', 0o600],
-                        'backup': True,
-                    },
-                    {
-                        'path': '/home/$user/dir',
-                        'target': '/home/$user/.hidden/dir',
-                        'ensure': 'symlink',
-                        'backup': True,
-                    },
-                ],
                 'template1': {
                     'greeting': 'Greetings',
                     'caller': 'Admin',
                 },
             },
-            'foreach': ['user1', 'user2'],
-            'foreach_variable': 'user',
+            'foreach': [{'user': 'user1'}, {'user': 'user2'}],
+            'for': {'user': 'user1'},
             'files': {
                 'template1': str(self._base_dir / 't'),
                 'template2': '/template/with/variables',
@@ -123,6 +101,7 @@ class TestPluginsPaths(unittest.TestCase):
         self.assertEqual(
                 pathlib.Path(self._base_dir / 'a').read_text(encoding='utf-8'),
                 'Greetings, oh Admin!')
+
     def test_ensure_file_no_template(self) -> None:
         """Fail because no valid template exists."""
         with self.assertRaises(KeyError):

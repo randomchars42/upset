@@ -41,11 +41,11 @@ Examples::
                 # users
                 {
                     # see `foreach_variable` below
-                    "path": "/home/$user/file",
+                    "path": "/home/{user}/file",
                     "ensure": "file",
                     "template": "template2",
                     "mode": "update",
-                    "permissions": ["$user", "", 0o600],
+                    "permissions": ["{user}", "", 0o600],
                     "backup": true,
                 },
                 # decribe a file that must exist and contain defined
@@ -54,7 +54,7 @@ Examples::
                 # expression) in a file
                 # the default is to insert the line at the end ("")
                 {
-                    "path": "/home/$user/dir",
+                    "path": "/home/{user}/dir",
                     "ensure": "in_file",
                     "text": "some text",
                     "insert_at": "",
@@ -62,14 +62,14 @@ Examples::
                 },
                 # describe a symlink
                 {
-                    "path": "/home/$user/dir",
-                    "target": "/home/$user/.hidden/dir",
+                    "path": "/home/{user}/dir",
+                    "target": "/home/{user}/.hidden/dir",
                     "ensure": "symlink",
                     "backup": true,
                 },
                 # describe an absent file
                 {
-                    "path": "/home/$user/dir",
+                    "path": "/home/{user}/dir",
                     "ensure": "absent",
                     "backup": true,
                 },
@@ -78,8 +78,7 @@ Examples::
                 "greeting": "Hello",
             },
         },
-        "foreach": ["user1", "user2"],
-        "foreach_variable": "user",
+        "foreach": [{"user": "user1"}, {"user": "user2"}],
         "files": {
             "template1": "/path/to/my/template1",
             # if a file contains variables that are set the variables
@@ -163,12 +162,9 @@ class Paths(lib.Plugin):
                 self.data['files'][subtask['template']])
 
         if subtask['template'] in self.data['variables']:
-            variables: dict[str, str] = \
-                    self.data['variables'][subtask['template']]
-        else:
-            variables = {}
+            self.data['for'].update(self.data['variables'][subtask['template']])
 
-        template: lib.Template = lib.Template(file, variables)
+        template: lib.Template = lib.Template(file, self.data['for'])
 
         if 'mode' in subtask:
             mode:str = subtask['mode']

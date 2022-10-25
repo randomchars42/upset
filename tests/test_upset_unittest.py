@@ -30,17 +30,16 @@ class TestUpsetUpset(unittest.TestCase):
         self._upset: upset.Upset = upset.Upset()
         self._base_dir: pathlib.Path = pathlib.Path('tests/tmp')
         self._task: upset.Task = upset.Task.from_json({
-                "name": "faketask",
-                "plugin": "fakeplugin",
-                "variables": {
-                    "var_1": "Var 1",
-                    "var_2": "Var 2"
+                'name': 'faketask',
+                'plugin': 'fakeplugin',
+                'variables': {
+                    'var_1': 'Var 1',
+                    'var_2': 'Var 2'
                     },
-                "foreach_variable": "file",
-                "foreach": ["a", "b"],
-                "files": {
-                    "template_a": str(self._base_dir / 'template_a'),
-                    "template_b": str(self._base_dir / 'template_b'),
+                'foreach': [{'file': 'a'}, {'file': 'b'}],
+                'files': {
+                    'template_a': str(self._base_dir / 'template_a'),
+                    'template_b': str(self._base_dir / 'template_b'),
                     }
                 })
         try:
@@ -94,6 +93,12 @@ class TestUpsetUpset(unittest.TestCase):
 
     def test_send_plugin(self) -> None:
         """Send plugin."""
+        pathlib.Path(self._base_dir / 'tmp').mkdir()
+        pathlib.Path(self._base_dir / 'tmp' / 'fakeplugin.py').touch()
+        self._upset.send_plugin(self._task, self._base_dir, user='', host='',
+                user_plugins=self._base_dir / 'tmp')
+        self.assertTrue(pathlib.Path(self._base_dir / 'fakeplugin.py').exists())
+        pathlib.Path(self._base_dir / 'tmp' / 'fakeplugin.py').unlink()
 
     def test_send_files(self) -> None:
         """Send files."""
@@ -112,20 +117,77 @@ class TestUpsetUpset(unittest.TestCase):
     def test_transform_task_to_data(self) -> None:
         """Transform a task to data that can be used in the plugin."""
         self.assertEqual(
-                json.dumps(self._upset.transform_task_to_data(self._task, 'a')),
+                json.dumps(self._upset.transform_task_to_data(self._task,
+                    {'file': 'a'})),
                 json.dumps({
-                    "file": "a",
-                    "variables": {
-                        "var_1": "Var 1",
-                        "var_2": "Var 2"
+                    'name': 'faketask',
+                    'plugin': 'fakeplugin',
+                    'variables': {
+                        'var_1': 'Var 1',
+                        'var_2': 'Var 2'
                         },
-                    "files": {
-                        "template_a": '___'.join(pathlib.Path(self._base_dir /
+                    'files': {
+                        'template_a': '___'.join(pathlib.Path(self._base_dir /
                             'template_a').resolve().parts[1:]),
-                        "template_b": '___'.join(pathlib.Path(self._base_dir /
+                        'template_b': '___'.join(pathlib.Path(self._base_dir /
                             'template_b').resolve().parts[1:]),
-                        }
+                        },
+                    'for': {'file': 'a'},
                     }))
+
+    def test_expand_task_dummy(self) -> None:
+        """`expand_task()` does not expand on empty var."""
+        self.assertEqual(
+                self._upset.expand_task(self._task, {}),
+                self._task)
+
+    def test_expand_task(self) -> None:
+        """Expand task recursively."""
+        self.assertEqual(
+                str(self._upset.expand_task(upset.Task.from_json({
+                    'name': 'faketask',
+                    'plugin': 'fakeplugin',
+                    'variables': {
+                        'var_1': '{user}',
+                        'var_2': '{group}',
+                        },
+                    'files': {
+                        'template_{user}': 'file_{user}',
+                        'template_b': 'file_{user}_b',
+                        },
+                    }),
+                    {'user': 'user1', 'group': 'group1'})),
+                    json.dumps({
+                        'name': 'faketask',
+                        'plugin': 'fakeplugin',
+                        'foreach': [], # upset.Task creates an empty list
+                        'variables': {
+                            'var_1': 'user1',
+                            'var_2': 'group1',
+                            },
+                        'files': {
+                            'template_user1': 'file_user1',
+                            'template_b': 'file_user1_b',
+                            },
+                        }))
+
+    def test_expand_task_fail(self) -> None:
+        """Fail expanding task recursively because of unset variable."""
+        with self.assertRaises(lib.UpsetError):
+            self._upset.expand_task(upset.Task.from_json({
+                'name': 'faketask',
+                'plugin': 'fakeplugin',
+                'variables': {
+                    'var_1': '{user}',
+                    'var_2': '{group}',
+                    'var_3': '{unset}'
+                    },
+                'files': {
+                    'template_{user}': 'file_{user}',
+                    'template_b': 'file_{user}_b',
+                    },
+                }),
+                {'user': 'user1', 'group': 'group1'})
 
     @unittest.skip('do not ask for sudo password by default')
     def test_run_plugin(self) -> None:
@@ -142,7 +204,8 @@ class TestUpsetUpset(unittest.TestCase):
                 self._upset.run_task(
                     self._task,
                     self._base_dir,
-                    user='', host='', password=getpass.getpass()),
+                    user='', host='', password=getpass.getpass(),
+                    for_task={}),
                 'a\nb\n')
 
 if __name__ == '__main__':
