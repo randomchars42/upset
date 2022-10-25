@@ -141,8 +141,53 @@ class TestUpsetUpset(unittest.TestCase):
                 self._upset.expand_task(self._task, {}),
                 self._task)
 
-    def test_walk_task_string(self) -> None:
+    def test_expand_task(self) -> None:
         """Expand task recursively."""
+        self.assertEqual(
+                str(self._upset.expand_task(upset.Task.from_json({
+                    'name': 'faketask',
+                    'plugin': 'fakeplugin',
+                    'variables': {
+                        'var_1': '{user}',
+                        'var_2': '{group}',
+                        },
+                    'files': {
+                        'template_{user}': 'file_{user}',
+                        'template_b': 'file_{user}_b',
+                        },
+                    }),
+                    {'user': 'user1', 'group': 'group1'})),
+                    json.dumps({
+                        'name': 'faketask',
+                        'plugin': 'fakeplugin',
+                        'foreach': [], # upset.Task creates an empty list
+                        'variables': {
+                            'var_1': 'user1',
+                            'var_2': 'group1',
+                            },
+                        'files': {
+                            'template_user1': 'file_user1',
+                            'template_b': 'file_user1_b',
+                            },
+                        }))
+
+    def test_expand_task_fail(self) -> None:
+        """Fail expanding task recursively because of unset variable."""
+        with self.assertRaises(lib.UpsetError):
+            self._upset.expand_task(upset.Task.from_json({
+                'name': 'faketask',
+                'plugin': 'fakeplugin',
+                'variables': {
+                    'var_1': '{user}',
+                    'var_2': '{group}',
+                    'var_3': '{unset}'
+                    },
+                'files': {
+                    'template_{user}': 'file_{user}',
+                    'template_b': 'file_{user}_b',
+                    },
+                }),
+                {'user': 'user1', 'group': 'group1'})
 
     @unittest.skip('do not ask for sudo password by default')
     def test_run_plugin(self) -> None:
@@ -159,7 +204,8 @@ class TestUpsetUpset(unittest.TestCase):
                 self._upset.run_task(
                     self._task,
                     self._base_dir,
-                    user='', host='', password=getpass.getpass()),
+                    user='', host='', password=getpass.getpass(),
+                    for_task={}),
                 'a\nb\n')
 
 if __name__ == '__main__':

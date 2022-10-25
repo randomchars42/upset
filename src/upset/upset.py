@@ -209,7 +209,7 @@ class Upset:
             elif isinstance(leaf, dict):
                 return {self.expand_task_leaves(key, var):
                         self.expand_task_leaves(value, var)
-                        for key, value in leaf}
+                        for key, value in leaf.items()}
             else:
                 return leaf
         except KeyError as error:
