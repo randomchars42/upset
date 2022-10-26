@@ -411,12 +411,18 @@ class Sys:
 
     @staticmethod
     def build_command(command_parts: list[str], user: str = '',
-            host: str = '') -> list[str]:
+            host: str = '', sudo: bool = False) -> list[str]:
         """Run a command on a remote host.
 
         Args:
             command_parts: The command with parameters to run on `host`,
                 each as its own string.
+            user: The user to log in with (see `Sys.build_command()`
+                for default behaviour).
+            host: The host to execute the task on (see
+                `Sys.build_command()` for default behaviour).
+            sudo: Prepend sudo. For commands as current user on current
+                machine only.
         """
         if user == '':
             user = getpass.getuser()
@@ -424,6 +430,8 @@ class Sys:
             host = socket.gethostname()
 
         if host == socket.gethostname() and user == getpass.getuser():
+            if sudo:
+                return ['/usr/bin/sudo', '--'] + command_parts
             return ['/usr/bin/bash', '-c', ' '.join(command_parts)]
 
         return ['/usr/bin/ssh', f'{user}@{host}'] + command_parts
