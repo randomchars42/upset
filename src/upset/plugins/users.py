@@ -97,27 +97,26 @@ class Users(lib.Plugin):
     def run(self) -> None:
         """Do the main work."""
         for subtask in self.data['variables']['users']:
-            match subtask['ensure']:
-                case 'user':
-                    self.ensure_user(
-                            subtask['name'],
-                            subtask.get('uid', ''),
-                            subtask.get('group', ''),
-                            subtask.get('gecos', ''),
-                            subtask.get('password', ''))
-                case 'user_absent':
-                    self.ensure_user_absent(subtask['name'])
-                case 'group':
-                    self.ensure_group(subtask)
-                case 'group_absent':
-                    self.ensure_group_absent(subtask)
-                case 'in_group':
-                    self.ensure_in_group(subtask['name'], subtask['group'])
-                case 'not_in_group':
-                    self.ensure_not_in_group(subtask['name'], subtask['group'])
-                case 'other':
-                    raise lib.UpsetError(
-                            f'no such subtask "{subtask["ensure"]}"')
+            if subtask['ensure'] == 'user':
+                self.ensure_user(
+                        subtask['name'],
+                        subtask.get('uid', ''),
+                        subtask.get('group', ''),
+                        subtask.get('gecos', ''),
+                        subtask.get('password', ''))
+            elif subtask['ensure'] == 'user_absent':
+                self.ensure_user_absent(subtask['name'])
+            elif subtask['ensure'] == 'group':
+                self.ensure_group(subtask)
+            elif subtask['ensure'] == 'group_absent':
+                self.ensure_group_absent(subtask)
+            elif subtask['ensure'] == 'in_group':
+                self.ensure_in_group(subtask['name'], subtask['group'])
+            elif subtask['ensure'] == 'not_in_group':
+                self.ensure_not_in_group(subtask['name'], subtask['group'])
+            else:
+                raise lib.UpsetError(
+                        f'no such subtask "{subtask["ensure"]}"')
 
     def user_exists(self, name: str) -> bool:
         """Test if the user exists on the system.

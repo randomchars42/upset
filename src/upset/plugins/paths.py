@@ -118,20 +118,19 @@ class Paths(lib.Plugin):
             if not 'backup' in subtask:
                 subtask['backup'] = True
 
-            match subtask['ensure']:
-                case 'absent':
-                    self.ensure_absent(subtask)
-                case 'file':
-                    self.ensure_file(subtask)
-                case 'dir':
-                    self.ensure_dir(subtask)
-                case 'symlink':
-                    self.ensure_symlink(subtask)
-                case 'in_file':
-                    self.ensure_in_file(subtask)
-                case 'other':
-                    raise lib.UpsetError(
-                            f'no such subtask "{subtask["ensure"]}"')
+            if subtask['ensure'] == 'absent':
+                self.ensure_absent(subtask)
+            elif subtask['ensure'] == 'file':
+                self.ensure_file(subtask)
+            elif subtask['ensure'] == 'dir':
+                self.ensure_dir(subtask)
+            elif subtask['ensure'] == 'symlink':
+                self.ensure_symlink(subtask)
+            elif subtask['ensure'] == 'in_file':
+                self.ensure_in_file(subtask)
+            else:
+                raise lib.UpsetError(
+                        f'no such subtask "{subtask["ensure"]}"')
 
     def ensure_absent(self, subtask: Any) -> None:
         """Ensure nothing exists at path.
