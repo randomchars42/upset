@@ -224,6 +224,46 @@ class Users(lib.Plugin):
 
         lib.Sys.run_command(lib.Sys.build_command(['sudo', 'deluser', name]))
 
+    def ensure_group(self, name: str, gid: str = ''):
+        """Create a group.
+
+        Args:
+            name: The name of the group (see `man addgroup` for allowed
+                names).
+            gid: The group id. If an empty string is given `addgroup`
+                will choose an id.
+        """
+        logger.info('ensuring group "%s" exists', name)
+
+        if self.group_exists(name):
+            return
+
+        command = ['sudo', 'addgroup']
+
+        if gid != '':
+            command.extend(['--gid', str(gid)])
+
+        command.append(name)
+
+        logger.info('creating group "%s"', name)
+
+        lib.Sys.run_command(lib.Sys.build_command(command))
+
+    def ensure_group_absent(self, name: str) -> None:
+        """Ensure a group is absent.
+
+        Args:
+            name: The group's name.
+        """
+        logger.info('ensuring group "%s" is absent', name)
+
+        if not self.group_exists(name):
+            return
+
+        logger.info('deleting group "%s"', name)
+
+        lib.Sys.run_command(lib.Sys.build_command(['sudo', 'delgroup', name]))
+
     def ensure_in_group(self, name: str, group: str) -> None:
         """Ensure user is in the given group.
 
