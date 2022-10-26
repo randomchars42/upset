@@ -592,6 +592,54 @@ class Helper:
             raise UpsetHelperError(
                     'could not decode and load data') from error
 
+    @staticmethod
+    def ensure_ssh_key(user: str, host: str, key_file: pathlib.Path):
+        logger.info('ensure "%s" has ssh key for "%s" ("%s")', user, host,
+                str(key_file))
+
+        if key_file.is_file():
+            return
+
+        logger.info('creating ssh key for "%s" on "%s"', user, host)
+
+        Sys.run_command(Sys.build_command(['ssh-keygen', '-q', '-N', '', '-f',
+            str(key_file)]))
+        Sys.run_command(Sys.build_command(['ssh-copy-id', '-i', str(key_file),
+            host]))
+
+    @staticmethod
+    def ensure_ssh_key_absent(user: str, host: str, key_file: pathlib.Path,
+            remove_remote_only: bool =  False):
+        """Ensure there is no ssh key for user on host.
+
+        Args:
+            user: The user to use the ssh key for.
+            host: The host to use the ssh key on.
+            key_file: The file.
+            remove_remote_only: Only remove key from authorized keys on
+                host but keep the key file locally. Use if the same file
+                is used for access on several machines.
+        """
+        logger.info('ensure ssh key "%s" is absent', str(key_file))
+
+        if not key_file.is_file():
+            return
+
+        logger.info('removing ssh key for "%s" on "%s"', user, host)
+
+        key_file_pub: pathlib.Path = pathlib.Path(str(key_file) + '.pub')
+        key: str = key_file_pub.read_text(encoding='utf-8')
+
+        key = re.sub(r'([]\/$*.^|[])', r'\\\1', key)
+        key = key.split(' ')[1]
+
+        Sys.run_command(Sys.build_command(['sed', '-i~', f'\'/{key}/d\'',
+            '~/.ssh/authorized_keys'], user=user, host=host))
+
+        if not remove_remote_only:
+            key_file.unlink()
+            key_file_pub.unlink()
+
 class Plugin:
     """Baseclass for plugins providing data decoded from the call.
 
