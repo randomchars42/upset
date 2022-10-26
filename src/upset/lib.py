@@ -613,14 +613,14 @@ class Plugin:
                     for label, file in self.data['files']:
                         print(f'File with label "{label}" has name'
                             f'"{file}" on the target machine')
-                    # the special variable defined by
-                    # `Task.foreach_variable`
-                    # and `Task.foreach` is stored under the name
-                    # defined in
-                    # `Task.foreach_variable`, e.g., for
-                    # `Task.foreach_variable = 'user'` and
-                    # `Task.foreach = ['user1', 'user2']`
-                    print(f'doing this for: "{self.data['user']}"')
+                    # the current value  of the special variables
+                    # defined by `Task.foreach_variable`
+                    # are stored in `Task.for`, e.g.,
+                    # `Task.foreach = [
+                    #   {'user': 'user1', 'group': 'group1'},
+                    #   {'user': 'user2', 'group': 'group2'}]`
+                    print(
+                        f'doing this for: "{self.data['for']['user']}"')
                     # prints "user1" when the script is first executed
                     # and "user2" on the second run
 
