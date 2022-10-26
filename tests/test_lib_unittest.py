@@ -340,8 +340,9 @@ class TestLibSys(unittest.TestCase):
         file_a: pathlib.Path = pathlib.Path('a')
         file_b: pathlib.Path = pathlib.Path('b')
         self.assertEqual(
-                lib.Sys.build_scp_command(file_a, file_b, 'to', 'test', 'host'),
-                ['/usr/bin/scp', '-p', 'a', 'test@host:/b'])
+                lib.Sys.build_scp_command(file_a, file_b, 'to', 'test', 'host',
+                    ssh_key=pathlib.Path('ssh_key')),
+                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'a', 'test@host:/b'])
 
     def test_build_scp_command_from(self) -> None:
         """Build scp command sequence."""
@@ -349,8 +350,8 @@ class TestLibSys(unittest.TestCase):
         file_b: pathlib.Path = pathlib.Path('b')
         self.assertEqual(
                 lib.Sys.build_scp_command(file_a, file_b, 'from', 'test',
-                    'host'),
-                ['/usr/bin/scp', '-p', 'test@host:/b', 'a'])
+                    'host', ssh_key=pathlib.Path('ssh_key')),
+                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'test@host:/b', 'a'])
 
     def test_build_scp_command_run(self) -> None:
         """Run scp command sequence."""

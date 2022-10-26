@@ -362,7 +362,8 @@ class Sys:
 
     @staticmethod
     def build_sudo_command(command_parts: list[str], password: str,
-            user: str = '', host: str = '') -> list[str]:
+            user: str = '', host: str = '',
+            ssh_key: pathlib.Path = pathlib.Path()) -> list[str]:
         """Prepare a command to be run with sudo non-interactively.
 
         Achieves this by making `sudo` read the password from `stdin`
@@ -390,6 +391,7 @@ class Sys:
                 for default behaviour).
             host: The host to execute the task on (see
                 `Sys.build_command()` for default behaviour).
+            ssh_key: The ssh key or identity to use.
 
         Returns:
             A command that can be passed to a shell via
@@ -406,12 +408,13 @@ class Sys:
         return Sys.build_command(
                 [f'echo {encoded_command.decode()} | /usr/bin/base64 -d |'
                     ' $SHELL'],
-                user, host)
+                user, host, ssh_key)
 
 
     @staticmethod
     def build_command(command_parts: list[str], user: str = '',
-            host: str = '', sudo: bool = False) -> list[str]:
+            host: str = '', ssh_key: pathlib.Path = pathlib.Path(),
+            sudo: bool = False) -> list[str]:
         """Run a command on a remote host.
 
         Args:
@@ -421,6 +424,7 @@ class Sys:
                 for default behaviour).
             host: The host to execute the task on (see
                 `Sys.build_command()` for default behaviour).
+            ssh_key: The ssh key or identity to use.
             sudo: Prepend sudo. For commands as current user on current
                 machine only.
         """
@@ -434,11 +438,13 @@ class Sys:
                 return ['/usr/bin/sudo', '--'] + command_parts
             return ['/usr/bin/bash', '-c', ' '.join(command_parts)]
 
-        return ['/usr/bin/ssh', f'{user}@{host}'] + command_parts
+        return ['/usr/bin/ssh', '-i', str(ssh_key), f'{user}@{host}'] \
+                + command_parts
 
     @staticmethod
     def build_scp_command(local_path: pathlib.Path, remote_path: pathlib.Path,
-            direction: str = 'to', user: str = '', host: str = '') -> list[str]:
+            direction: str = 'to', user: str = '', host: str = '',
+            ssh_key: pathlib.Path = pathlib.Path()) -> list[str]:
         """Build a command to copy files (from / to a remote machine).
 
         Though it can be used to move files locally this function is
@@ -453,6 +459,7 @@ class Sys:
                 for default behaviour).
             host: The host to execute the task on (see
                 `Sys.build_command()` for default behaviour).
+            ssh_key: The ssh key or identity to use.
         """
         direction = direction.lower()
 
@@ -469,9 +476,9 @@ class Sys:
 
         if host == socket.gethostname() and user == getpass.getuser():
             # use this for debugging
-            copy: str = '/usr/bin/cp'
+            copy: list[str] = ['/usr/bin/cp']
         else:
-            copy = '/usr/bin/scp'
+            copy = ['/usr/bin/scp', '-i', str(ssh_key)]
             remote = f'{user}@{host}:/{remote}'
 
         if direction == 'to':
@@ -481,7 +488,7 @@ class Sys:
             source = remote
             destination = local
 
-        return [copy, '-p', source, destination]
+        return copy + ['-p', source, destination]
 
     @staticmethod
     def make_temporary_directory(user: str = '',
@@ -523,6 +530,54 @@ class Sys:
         except UpsetError as error:
             raise UpsetError(
                     'could not remove temporary directory') from error
+
+    @staticmethod
+    def ensure_ssh_key(user: str, host: str, key_file: pathlib.Path):
+        logger.info('ensure "%s" has ssh key for "%s" ("%s")', user, host,
+                str(key_file))
+
+        if key_file.is_file():
+            return
+
+        logger.info('creating ssh key for "%s" on "%s"', user, host)
+
+        Sys.run_command(Sys.build_command(['ssh-keygen', '-q', '-N', '', '-f',
+            str(key_file)]))
+        Sys.run_command(Sys.build_command(['ssh-copy-id', '-i', str(key_file),
+            host]))
+
+    @staticmethod
+    def ensure_ssh_key_absent(user: str, host: str, key_file: pathlib.Path,
+            remove_remote_only: bool =  False):
+        """Ensure there is no ssh key for user on host.
+
+        Args:
+            user: The user to use the ssh key for.
+            host: The host to use the ssh key on.
+            key_file: The file.
+            remove_remote_only: Only remove key from authorized keys on
+                host but keep the key file locally. Use if the same file
+                is used for access on several machines.
+        """
+        logger.info('ensure ssh key "%s" is absent', str(key_file))
+
+        if not key_file.is_file():
+            return
+
+        logger.info('removing ssh key for "%s" on "%s"', user, host)
+
+        key_file_pub: pathlib.Path = pathlib.Path(str(key_file) + '.pub')
+        key: str = key_file_pub.read_text(encoding='utf-8')
+
+        key = re.sub(r'([]\/$*.^|[])', r'\\\1', key)
+        key = key.split(' ')[1]
+
+        Sys.run_command(Sys.build_command(['sed', '-i~', f'\'/{key}/d\'',
+            '~/.ssh/authorized_keys'], user=user, host=host))
+
+        if not remove_remote_only:
+            key_file.unlink()
+            key_file_pub.unlink()
 
 class Helper:
     """Provide some functions."""
@@ -591,54 +646,6 @@ class Helper:
         except (TypeError, RecursionError, ValueError) as error:
             raise UpsetHelperError(
                     'could not decode and load data') from error
-
-    @staticmethod
-    def ensure_ssh_key(user: str, host: str, key_file: pathlib.Path):
-        logger.info('ensure "%s" has ssh key for "%s" ("%s")', user, host,
-                str(key_file))
-
-        if key_file.is_file():
-            return
-
-        logger.info('creating ssh key for "%s" on "%s"', user, host)
-
-        Sys.run_command(Sys.build_command(['ssh-keygen', '-q', '-N', '', '-f',
-            str(key_file)]))
-        Sys.run_command(Sys.build_command(['ssh-copy-id', '-i', str(key_file),
-            host]))
-
-    @staticmethod
-    def ensure_ssh_key_absent(user: str, host: str, key_file: pathlib.Path,
-            remove_remote_only: bool =  False):
-        """Ensure there is no ssh key for user on host.
-
-        Args:
-            user: The user to use the ssh key for.
-            host: The host to use the ssh key on.
-            key_file: The file.
-            remove_remote_only: Only remove key from authorized keys on
-                host but keep the key file locally. Use if the same file
-                is used for access on several machines.
-        """
-        logger.info('ensure ssh key "%s" is absent', str(key_file))
-
-        if not key_file.is_file():
-            return
-
-        logger.info('removing ssh key for "%s" on "%s"', user, host)
-
-        key_file_pub: pathlib.Path = pathlib.Path(str(key_file) + '.pub')
-        key: str = key_file_pub.read_text(encoding='utf-8')
-
-        key = re.sub(r'([]\/$*.^|[])', r'\\\1', key)
-        key = key.split(' ')[1]
-
-        Sys.run_command(Sys.build_command(['sed', '-i~', f'\'/{key}/d\'',
-            '~/.ssh/authorized_keys'], user=user, host=host))
-
-        if not remove_remote_only:
-            key_file.unlink()
-            key_file_pub.unlink()
 
 class Plugin:
     """Baseclass for plugins providing data decoded from the call.
