@@ -122,10 +122,9 @@ class AptPackages(lib.Plugin):
             return
 
         logger.info('installing packages "%s"', ', '.join(to_install))
-        print('installing packages "%s"', ', '.join(to_install))
-        #lib.Sys.run_command(lib.Sys.build_command(
-        #    ['apt-get', 'install'] + to_install,
-        #    sudo=True))
+        lib.Sys.run_command(lib.Sys.build_command(
+            ['apt-get', '-qq', '-y', 'install'] + to_install,
+            sudo=True))
 
     def ensure_packages_absent(self, packages: list[str]) -> None:
         """Ensure packages are present.
@@ -146,12 +145,8 @@ class AptPackages(lib.Plugin):
             return
 
         logger.info('removing packages "%s"', ', '.join(to_remove))
-        print('removing packages "%s"', ', '.join(to_remove))
-        print(lib.Sys.build_command(
-            ['apt-get', 'remove'] + to_remove,
-            sudo=True))
         lib.Sys.run_command(lib.Sys.build_command(
-            ['sudo', 'apt-get', 'remove'] + to_remove,
+            ['apt-get', '-qq', '-y', 'remove'] + to_remove,
             sudo=True))
 
     def apt_do(self, task: str) -> None:
@@ -164,7 +159,7 @@ class AptPackages(lib.Plugin):
         logger.info('Calling apt-get "%s"', task)
 
         lib.Sys.run_command(lib.Sys.build_command(
-            ['sudo', 'apt-get', task], sudo=True))
+            ['apt-get', '-qq', '-y', task], sudo=True))
 
 if __name__ == '__main__':
     apt_packages: AptPackages = AptPackages()
