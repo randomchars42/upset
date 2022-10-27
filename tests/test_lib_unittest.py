@@ -27,7 +27,7 @@ levels: list[str] = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
 root_logger.setLevel(
         levels[min(int(os.environ.get('UPSET_VERBOSITY', 1)), 3)])
 # enable tests that need interaction with the user
-require_interaction: bool = bool(os.environ.get('UPSET_INTERACTION', 0))
+require_interaction: bool = bool(int(os.environ.get('UPSET_INTERACTION', 0)))
 
 # pylint: disable=too-many-public-methods
 class TestLibFs(unittest.TestCase):
