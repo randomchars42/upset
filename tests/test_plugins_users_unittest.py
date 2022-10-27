@@ -1,7 +1,7 @@
 """Test plugin "Paths"."""
 
-import argparse
 import logging
+import os
 import sys
 import unittest
 
@@ -104,30 +104,10 @@ class TestPluginsUsers(unittest.TestCase):
         self.assertFalse(self._users.user_in_group('root', 'games'))
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i',
-            '--interactive',
-            help='run tests that require interaction',
-            action='store_true',
-            default=False,
-            type=bool)
-    parser.add_argument('-v',
-            '--verbosity',
-            help='increase verbosity',
-            action='count',
-            default=0)
-
-    args = parser.parse_args()
-
     levels: list[str] = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
     # there are only levels 0 to 3
     # everything else will cause the index to be out of bounds
-    root_logger.setLevel(levels[min(args.verbosity, 3)])
-    require_interaction = args.interactive
-
-    # remove our args because we don't want to send them to unittest
-    for x in sum([h._long_opts+h._short_opts for h in parser.option_list],[]):
-        if x in sys.argv:
-            sys.argv.remove(x)
-
+    root_logger.setLevel(
+            levels[min(int(os.environ.get('UPSET_VERBOSITY', 1)), 3)])
+    require_interaction = bool(os.environ.get('UPSET_INTERACTION', 0))
     unittest.main()
