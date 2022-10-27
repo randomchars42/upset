@@ -302,30 +302,29 @@ class TestLibSys(unittest.TestCase):
     def test_run_command(self) -> None:
         """Run command."""
         self.assertEqual(
-                lib.Sys.run_command(['/usr/bin/bash', '-c', 'echo Hello']),
+                lib.Sys.run_command(['bash', '-c', 'echo Hello']),
                 'Hello')
 
     def test_run_command_fail(self) -> None:
         """Fail running a command."""
         with self.assertRaises(lib.UpsetSysError):
-            lib.Sys.run_command(['/usr/bin/cp', '--fail'])
+            lib.Sys.run_command(['cp', '--fail'])
 
     def test_build_command_run(self) -> None:
         """Run command."""
         self.assertEqual(
                 lib.Sys.run_command(
-                    lib.Sys.build_command(
-                        ['echo "Hello"'])),
+                    lib.Sys.build_command(['echo "Hello"'])),
                 'Hello')
 
     def test_build_sudo_command(self) -> None:
         """Build sudo command sequence."""
         self.assertEqual(
                 lib.Sys.build_sudo_command(['echo', '"Hello"'], 'password'),
-                ['/usr/bin/bash', '-c',
-                    'echo ZWNobyAicGFzc3dvcmQiIHwgL3Vzci9iaW4vc3VkbyAtUyAtLXBy'\
-                            'b21wdD0gLS0gZWNobyAiSGVsbG8iCg== | '\
-                            '/usr/bin/base64 -d | $SHELL'])
+                ['bash', '-c',
+                    'echo ZWNobyAicGFzc3dvcmQiIHwgc3VkbyAtUyAtLXByb21wdD0gLS0'\
+                            'gZWNobyAiSGVsbG8iCg== | '\
+                            'base64 -d | $SHELL'])
 
     @unittest.skip('do not ask for sudo password by default')
     def test_build_sudo_command_run(self) -> None:
@@ -343,7 +342,8 @@ class TestLibSys(unittest.TestCase):
         self.assertEqual(
                 lib.Sys.build_scp_command(file_a, file_b, 'to', 'test', 'host',
                     ssh_key=pathlib.Path('ssh_key')),
-                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'a', 'test@host:/b'])
+                ['scp', '-i', 'ssh_key', '-p', 'a',
+                    'test@host:/b'])
 
     def test_build_scp_command_from(self) -> None:
         """Build scp command sequence."""
@@ -352,7 +352,8 @@ class TestLibSys(unittest.TestCase):
         self.assertEqual(
                 lib.Sys.build_scp_command(file_a, file_b, 'from', 'test',
                     'host', ssh_key=pathlib.Path('ssh_key')),
-                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'test@host:/b', 'a'])
+                ['scp', '-i', 'ssh_key', '-p', 'test@host:/b',
+                    'a'])
 
     def test_build_scp_command_run(self) -> None:
         """Run scp command sequence."""
