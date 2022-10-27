@@ -55,10 +55,10 @@ class UpsetError(Exception):
 class UpsetSysError(UpsetError):
     """Error for Sys interactions."""
 
-class UpsetFsError(Exception):
+class UpsetFsError(UpsetError):
     """Error for Fs interactions."""
 
-class UpsetHelperError(Exception):
+class UpsetHelperError(UpsetError):
     """Error for Helper interactions."""
 
 class Fs:

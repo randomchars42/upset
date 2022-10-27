@@ -1,5 +1,5 @@
 PATH := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-PYTHON3 := .venv/bin/python3#/usr/bin/python3
+PYTHON3 := .venv/bin/python3
 
 .PHONY: test
 test:
