@@ -2,6 +2,7 @@
 
 import logging
 import logging.config
+import os
 import pathlib
 import sys
 import unittest
@@ -19,6 +20,14 @@ root_logger: logging.Logger = logging.getLogger()
 root_logger.setLevel(logging.ERROR)
 root_logger.addHandler(logging_handler)
 logger: logging.Logger = logging.getLogger(__name__)
+
+levels: list[str] = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
+# there are only levels 0 to 3
+# everything else will cause the index to be out of bounds
+root_logger.setLevel(
+        levels[min(int(os.environ.get('UPSET_VERBOSITY', 1)), 3)])
+# enable tests that need interaction with the user
+require_interaction: bool = bool(int(os.environ.get('UPSET_INTERACTION', 0)))
 
 # pylint: disable=too-many-public-methods
 class TestPluginsPaths(unittest.TestCase):

@@ -10,13 +10,14 @@ import os
 import pathlib
 import pwd
 import re
+import shutil
 import socket
 import stat
 import string
 import subprocess
 import sys
 
-from typing import Any
+from typing import Any, Optional
 
 logger: logging.Logger = logging.getLogger()
 logger.addHandler(logging.NullHandler())
@@ -55,10 +56,10 @@ class UpsetError(Exception):
 class UpsetSysError(UpsetError):
     """Error for Sys interactions."""
 
-class UpsetFsError(Exception):
+class UpsetFsError(UpsetError):
     """Error for Fs interactions."""
 
-class UpsetHelperError(Exception):
+class UpsetHelperError(UpsetError):
     """Error for Helper interactions."""
 
 class Fs:
@@ -353,6 +354,9 @@ class Sys:
             UpsetError: Raised if the remote command fails.
         """
         try:
+            executable_cand: Optional[str] = shutil.which(command_parts[0])
+            command_parts[0] = executable_cand if executable_cand else \
+                    command_parts[0]
             return subprocess.run(command_parts, check=True,
                     capture_output=True).stdout.decode().strip()
         except subprocess.CalledProcessError as error:
@@ -401,13 +405,13 @@ class Sys:
         # base64.b64encode() needs a byte-like argument so the string
         # is first "encoded"
         encoded_command: bytes = base64.b64encode(
-                f'echo "{password}" | /usr/bin/sudo -S --prompt= -- '
+                f'echo "{password}" | sudo -S --prompt= -- '
                     f'{command}\n'.encode())
         # the result is a bytestream so it is "decoded" to a string
         # but it is still base64-gibberish
         return Sys.build_command(
-                [f'echo {encoded_command.decode()} | /usr/bin/base64 -d |'
-                    ' $SHELL'],
+                [f'echo {encoded_command.decode()} | base64 -d | '
+                    '$SHELL'],
                 user, host, ssh_key)
 
 
@@ -435,11 +439,10 @@ class Sys:
 
         if host == socket.gethostname() and user == getpass.getuser():
             if sudo:
-                return ['/usr/bin/sudo', '--'] + command_parts
-            return ['/usr/bin/bash', '-c', ' '.join(command_parts)]
+                return ['sudo', '--'] + command_parts
+            return ['bash', '-c', ' '.join(command_parts)]
 
-        return ['/usr/bin/ssh', '-i', str(ssh_key), f'{user}@{host}'] \
-                + command_parts
+        return ['ssh', '-i', str(ssh_key), f'{user}@{host}'] + command_parts
 
     @staticmethod
     def build_scp_command(local_path: pathlib.Path, remote_path: pathlib.Path,
@@ -476,9 +479,9 @@ class Sys:
 
         if host == socket.gethostname() and user == getpass.getuser():
             # use this for debugging
-            copy: list[str] = ['/usr/bin/cp']
+            copy: list[str] = ['cp']
         else:
-            copy = ['/usr/bin/scp', '-i', str(ssh_key)]
+            copy = ['scp', '-i', str(ssh_key)]
             remote = f'{user}@{host}:/{remote}'
 
         if direction == 'to':
@@ -506,7 +509,7 @@ class Sys:
         """
         try:
             return pathlib.Path(Sys.run_command(
-                Sys.build_command(['/usr/bin/mktemp', '-d'], user, host)))
+                Sys.build_command(['mktemp', '-d'], user, host)))
         except UpsetError as error:
             raise UpsetError(
                     'could not create temporary directory') from error
@@ -525,7 +528,7 @@ class Sys:
         """
         try:
             Sys.run_command(
-                Sys.build_command(['/usr/bin/rm', '-r', str(directory)], user,
+                Sys.build_command(['rm', '-r', str(directory)], user,
                     host))
         except UpsetError as error:
             raise UpsetError(
@@ -556,8 +559,8 @@ class Sys:
 
         logger.info('creating ssh key for "%s" on "%s"', user, host)
 
-        Sys.run_command(Sys.build_command(['/usr/bin/ssh-keygen', '-q', '-N',
-            '""', '-f', str(key_file)]))
+        Sys.run_command(Sys.build_command([
+            'ssh-keygen', '-q', '-N', '""', '-f', str(key_file)]))
 
         print(f'Please enter the password for {user}@{host} to make key files' \
                 'work')
@@ -569,7 +572,7 @@ class Sys:
 
         proc: subprocess.Popen
         with subprocess.Popen(
-                ['/usr/bin/ssh', f'{user}@{host}',
+                [f'{shutil.which("ssh")}', f'{user}@{host}',
                     'umask', '077', '&&',
                     'mkdir', '-p', str(authorized_keys_directory), '&&',
                     'chmod', '700', str(authorized_keys_directory), '&&',
@@ -617,7 +620,7 @@ class Sys:
         key = key.split(' ')[1]
 
         Sys.run_command(Sys.build_command([
-            '/usr/bin/sed', f'\'/{user}@{host}/ D\'', '-i~',
+            'sed', f'\'/{user}@{host}/ D\'', '-i~',
             f'{authorized_keys_directory}/authorized_keys'],
             user=user, host=host))
 

@@ -1,8 +1,7 @@
 """Test plugin "Paths"."""
 
-import grp
 import logging
-import pwd
+import os
 import sys
 import unittest
 
@@ -19,6 +18,14 @@ root_logger: logging.Logger = logging.getLogger()
 root_logger.setLevel(logging.ERROR)
 root_logger.addHandler(logging_handler)
 logger: logging.Logger = logging.getLogger(__name__)
+
+levels: list[str] = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
+# there are only levels 0 to 3
+# everything else will cause the index to be out of bounds
+root_logger.setLevel(
+        levels[min(int(os.environ.get('UPSET_VERBOSITY', 1)), 3)])
+# enable tests that need interaction with the user
+require_interaction: bool = bool(int(os.environ.get('UPSET_INTERACTION', 0)))
 
 # pylint: disable=too-many-public-methods
 class TestPluginsUsers(unittest.TestCase):
@@ -63,7 +70,8 @@ class TestPluginsUsers(unittest.TestCase):
         with self.assertRaises(lib.UpsetError):
             self._users.user_in_group('!kitty', 'root')
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_ensure_user(self) -> None:
         """Ensure user exists / does not exist."""
         self._users.ensure_user('root')
@@ -76,7 +84,8 @@ class TestPluginsUsers(unittest.TestCase):
         self._users.ensure_user_absent('upsettestuser')
         self.assertFalse(self._users.user_exists('upsettestuser'))
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_ensure_group(self) -> None:
         """Ensure group exists / does not exist."""
         self._users.ensure_group('root')
@@ -86,7 +95,8 @@ class TestPluginsUsers(unittest.TestCase):
         self._users.ensure_group_absent('upsettestgroup')
         self.assertFalse(self._users.group_exists('upsettestgroup'))
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_ensure_in_group(self) -> None:
         """Ensure user is / is not in group."""
         self._users.ensure_in_group('root', 'root')

@@ -21,6 +21,14 @@ root_logger.setLevel(logging.ERROR)
 root_logger.addHandler(logging_handler)
 logger: logging.Logger = logging.getLogger(__name__)
 
+levels: list[str] = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
+# there are only levels 0 to 3
+# everything else will cause the index to be out of bounds
+root_logger.setLevel(
+        levels[min(int(os.environ.get('UPSET_VERBOSITY', 1)), 3)])
+# enable tests that need interaction with the user
+require_interaction: bool = bool(int(os.environ.get('UPSET_INTERACTION', 0)))
+
 # pylint: disable=too-many-public-methods
 class TestLibFs(unittest.TestCase):
     """Test Fs from lib."""
@@ -302,32 +310,32 @@ class TestLibSys(unittest.TestCase):
     def test_run_command(self) -> None:
         """Run command."""
         self.assertEqual(
-                lib.Sys.run_command(['/usr/bin/bash', '-c', 'echo Hello']),
+                lib.Sys.run_command(['bash', '-c', 'echo Hello']),
                 'Hello')
 
     def test_run_command_fail(self) -> None:
         """Fail running a command."""
         with self.assertRaises(lib.UpsetSysError):
-            lib.Sys.run_command(['/usr/bin/cp', '--fail'])
+            lib.Sys.run_command(['cp', '--fail'])
 
     def test_build_command_run(self) -> None:
         """Run command."""
         self.assertEqual(
                 lib.Sys.run_command(
-                    lib.Sys.build_command(
-                        ['echo "Hello"'])),
+                    lib.Sys.build_command(['echo "Hello"'])),
                 'Hello')
 
     def test_build_sudo_command(self) -> None:
         """Build sudo command sequence."""
         self.assertEqual(
                 lib.Sys.build_sudo_command(['echo', '"Hello"'], 'password'),
-                ['/usr/bin/bash', '-c',
-                    'echo ZWNobyAicGFzc3dvcmQiIHwgL3Vzci9iaW4vc3VkbyAtUyAtLXBy'\
-                            'b21wdD0gLS0gZWNobyAiSGVsbG8iCg== | '\
-                            '/usr/bin/base64 -d | $SHELL'])
+                ['bash', '-c',
+                    'echo ZWNobyAicGFzc3dvcmQiIHwgc3VkbyAtUyAtLXByb21wdD0gLS0'\
+                            'gZWNobyAiSGVsbG8iCg== | '\
+                            'base64 -d | $SHELL'])
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_build_sudo_command_run(self) -> None:
         """Run sudo command sequence."""
         self.assertEqual(
@@ -343,7 +351,8 @@ class TestLibSys(unittest.TestCase):
         self.assertEqual(
                 lib.Sys.build_scp_command(file_a, file_b, 'to', 'test', 'host',
                     ssh_key=pathlib.Path('ssh_key')),
-                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'a', 'test@host:/b'])
+                ['scp', '-i', 'ssh_key', '-p', 'a',
+                    'test@host:/b'])
 
     def test_build_scp_command_from(self) -> None:
         """Build scp command sequence."""
@@ -352,7 +361,8 @@ class TestLibSys(unittest.TestCase):
         self.assertEqual(
                 lib.Sys.build_scp_command(file_a, file_b, 'from', 'test',
                     'host', ssh_key=pathlib.Path('ssh_key')),
-                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'test@host:/b', 'a'])
+                ['scp', '-i', 'ssh_key', '-p', 'test@host:/b',
+                    'a'])
 
     def test_build_scp_command_run(self) -> None:
         """Run scp command sequence."""
@@ -380,7 +390,8 @@ class TestLibSys(unittest.TestCase):
         lib.Sys.remove_temporary_directory(temp_dir)
         self.assertFalse(temp_dir.exists())
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_ensure_ssh(self) -> None:
         """Ensure ssh key exists"""
         ssh_key: pathlib.Path = self._base_dir / 'key'
