@@ -204,7 +204,8 @@ class TestUpsetUpset(unittest.TestCase):
                 self._upset.run_task(
                     self._task,
                     self._base_dir,
-                    user='', host='', password=getpass.getpass(),
+                    user='', host='', ssh_key=pathlib.Path(),
+                    password=getpass.getpass(),
                     for_task={}),
                 'a\nb\n')
 

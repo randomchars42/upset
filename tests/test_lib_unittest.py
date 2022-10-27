@@ -5,6 +5,7 @@ import logging
 import logging.config
 import os
 import pathlib
+import socket
 import time
 import unittest
 
@@ -378,6 +379,25 @@ class TestLibSys(unittest.TestCase):
         self.assertTrue(temp_dir.is_dir())
         lib.Sys.remove_temporary_directory(temp_dir)
         self.assertFalse(temp_dir.exists())
+
+    @unittest.skip('do not ask for sudo password by default')
+    def test_ensure_ssh(self) -> None:
+        """Ensure ssh key exists"""
+        ssh_key: pathlib.Path = self._base_dir / 'key'
+        pub_ssh_key: pathlib.Path = self._base_dir / 'key.pub'
+        authorized_keys = self._base_dir / 'authorized_keys'
+        lib.Sys.ensure_ssh_key(getpass.getuser(), socket.gethostname(),
+                ssh_key, self._base_dir.resolve())
+        self.assertTrue(ssh_key.exists())
+        self.assertTrue(authorized_keys.exists())
+        self.assertEqual(
+                pub_ssh_key.read_text(encoding='utf-8').strip(),
+                authorized_keys.read_text(encoding='utf-8').strip())
+        lib.Sys.ensure_ssh_key_absent(getpass.getuser(), socket.gethostname(),
+                ssh_key, self._base_dir.resolve(), False)
+        self.assertFalse(ssh_key.exists())
+        self.assertEqual('',
+                authorized_keys.read_text(encoding='utf-8').strip())
 
 # pylint: disable=too-many-public-methods
 class TestLibHelper(unittest.TestCase):

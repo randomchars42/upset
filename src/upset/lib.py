@@ -532,7 +532,22 @@ class Sys:
                     'could not remove temporary directory') from error
 
     @staticmethod
-    def ensure_ssh_key(user: str, host: str, key_file: pathlib.Path):
+    def ensure_ssh_key(user: str, host: str, key_file: pathlib.Path,
+            authorized_keys_directory: pathlib.Path = pathlib.Path('~/.ssh/')):
+        """Ensure the indicated ssh key is present.
+
+        If it is not present one will be created and the pub key sent to
+        the target machine and added to authorized_keys in the given
+        directory.
+
+        Args:
+            user: The user to use the ssh key for.
+            host: The host to use the ssh key on.
+            key_file: The key file.
+            authorized_keys_directory: The directory where
+                `authorized_keys` normally reside (default: `~/.ssh/`).
+                This can be changed for unittesting.
+        """
         logger.info('ensure "%s" has ssh key for "%s" ("%s")', user, host,
                 str(key_file))
 
@@ -541,20 +556,49 @@ class Sys:
 
         logger.info('creating ssh key for "%s" on "%s"', user, host)
 
-        Sys.run_command(Sys.build_command(['ssh-keygen', '-q', '-N', '', '-f',
-            str(key_file)]))
-        Sys.run_command(Sys.build_command(['ssh-copy-id', '-i', str(key_file),
-            host]))
+        Sys.run_command(Sys.build_command(['/usr/bin/ssh-keygen', '-q', '-N',
+            '""', '-f', str(key_file)]))
+
+        print(f'Please enter the password for {user}@{host} to make key files' \
+                'work')
+
+        authorized_keys: pathlib.Path = authorized_keys_directory / \
+                'authorized_keys'
+
+        pub_key_file: pathlib.Path = pathlib.Path(f'{key_file}.pub')
+
+        proc: subprocess.Popen
+        with subprocess.Popen(
+                ['/usr/bin/ssh', f'{user}@{host}',
+                    'umask', '077', '&&',
+                    'mkdir', '-p', str(authorized_keys_directory), '&&',
+                    'chmod', '700', str(authorized_keys_directory), '&&',
+                    'touch', str(authorized_keys), '&&',
+                    'chmod', '600', str(authorized_keys), '&&',
+                    f'{{ -z `tail -1c {authorized_keys} 2>/dev/null` ] || ' \
+                            f'echo >> "{authorized_keys}" || exit 1; }}', '&&',
+                    'echo', f'"{pub_key_file.read_text(encoding="utf-8")}"',
+                    '>>', str(authorized_keys)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE) as proc:
+            proc.wait()
+            #print(proc.stdout.read())
+            #print(proc.stderr.read())
 
     @staticmethod
     def ensure_ssh_key_absent(user: str, host: str, key_file: pathlib.Path,
+            authorized_keys_directory: pathlib.Path = pathlib.Path('~/.ssh/'),
             remove_remote_only: bool =  False):
         """Ensure there is no ssh key for user on host.
 
         Args:
             user: The user to use the ssh key for.
             host: The host to use the ssh key on.
-            key_file: The file.
+            key_file: The key file.
+            authorized_keys_directory: The directory where
+                `authorized_keys` normally reside (default: `~/.ssh/`).
+                This can be changed for unittesting.
             remove_remote_only: Only remove key from authorized keys on
                 host but keep the key file locally. Use if the same file
                 is used for access on several machines.
@@ -572,8 +616,10 @@ class Sys:
         key = re.sub(r'([]\/$*.^|[])', r'\\\1', key)
         key = key.split(' ')[1]
 
-        Sys.run_command(Sys.build_command(['sed', '-i~', f'\'/{key}/d\'',
-            '~/.ssh/authorized_keys'], user=user, host=host))
+        Sys.run_command(Sys.build_command([
+            '/usr/bin/sed', f'\'/{user}@{host}/ D\'', '-i~',
+            f'{authorized_keys_directory}/authorized_keys'],
+            user=user, host=host))
 
         if not remove_remote_only:
             key_file.unlink()
