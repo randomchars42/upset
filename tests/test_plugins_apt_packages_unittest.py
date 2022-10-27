@@ -63,5 +63,13 @@ class TestPluginsAptPackages(unittest.TestCase):
         self._apt_packages.ensure_packages_absent(['sshpass'])
         self.assertFalse(self._apt_packages.package_installed('sshpass'))
 
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
+    def test_apt_do(self) -> None:
+        """Ensure a package is installed."""
+        self._apt_packages.apt_do('update')
+        with self.assertRaises(lib.UpsetError):
+            self._apt_packages.apt_do('something stupid')
+
 if __name__ == '__main__':
     unittest.main()
