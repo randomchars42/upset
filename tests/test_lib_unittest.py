@@ -5,6 +5,7 @@ import logging
 import logging.config
 import os
 import pathlib
+import socket
 import time
 import unittest
 
@@ -340,8 +341,9 @@ class TestLibSys(unittest.TestCase):
         file_a: pathlib.Path = pathlib.Path('a')
         file_b: pathlib.Path = pathlib.Path('b')
         self.assertEqual(
-                lib.Sys.build_scp_command(file_a, file_b, 'to', 'test', 'host'),
-                ['/usr/bin/scp', '-p', 'a', 'test@host:/b'])
+                lib.Sys.build_scp_command(file_a, file_b, 'to', 'test', 'host',
+                    ssh_key=pathlib.Path('ssh_key')),
+                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'a', 'test@host:/b'])
 
     def test_build_scp_command_from(self) -> None:
         """Build scp command sequence."""
@@ -349,8 +351,8 @@ class TestLibSys(unittest.TestCase):
         file_b: pathlib.Path = pathlib.Path('b')
         self.assertEqual(
                 lib.Sys.build_scp_command(file_a, file_b, 'from', 'test',
-                    'host'),
-                ['/usr/bin/scp', '-p', 'test@host:/b', 'a'])
+                    'host', ssh_key=pathlib.Path('ssh_key')),
+                ['/usr/bin/scp', '-i', 'ssh_key', '-p', 'test@host:/b', 'a'])
 
     def test_build_scp_command_run(self) -> None:
         """Run scp command sequence."""
@@ -377,6 +379,25 @@ class TestLibSys(unittest.TestCase):
         self.assertTrue(temp_dir.is_dir())
         lib.Sys.remove_temporary_directory(temp_dir)
         self.assertFalse(temp_dir.exists())
+
+    @unittest.skip('do not ask for sudo password by default')
+    def test_ensure_ssh(self) -> None:
+        """Ensure ssh key exists"""
+        ssh_key: pathlib.Path = self._base_dir / 'key'
+        pub_ssh_key: pathlib.Path = self._base_dir / 'key.pub'
+        authorized_keys = self._base_dir / 'authorized_keys'
+        lib.Sys.ensure_ssh_key(getpass.getuser(), socket.gethostname(),
+                ssh_key, self._base_dir.resolve())
+        self.assertTrue(ssh_key.exists())
+        self.assertTrue(authorized_keys.exists())
+        self.assertEqual(
+                pub_ssh_key.read_text(encoding='utf-8').strip(),
+                authorized_keys.read_text(encoding='utf-8').strip())
+        lib.Sys.ensure_ssh_key_absent(getpass.getuser(), socket.gethostname(),
+                ssh_key, self._base_dir.resolve(), False)
+        self.assertFalse(ssh_key.exists())
+        self.assertEqual('',
+                authorized_keys.read_text(encoding='utf-8').strip())
 
 # pylint: disable=too-many-public-methods
 class TestLibHelper(unittest.TestCase):

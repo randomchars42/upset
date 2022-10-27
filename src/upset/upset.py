@@ -84,37 +84,67 @@ class Upset:
         self._sent_files: list[str] = []
 
     def run(self, path_plan: str,user: str = '', host: str = '',
-            user_plugins: str = '') -> None:
+            ssh_key_path: str = '', user_plugins_dir: str = '') -> None:
         """Read the plan and execute its task(s).
 
         Args:
             path_plan: The path to the plan.
             user: The user to authenticate with.
             host: The host to run the tasks on.
-            user_plugins: Path to user defined plugins.
+            ssh_key_path: The ssh key or identity to use.
+            user_plugins_dir: Path to user defined plugins.
         """
-
         try:
+            # read the plan
             plan: Tasklist = self.read_plan(pathlib.Path(path_plan))
+
+            # the plugins are called as super user on the target machine
             password: str = getpass.getpass(f'Password for {user}@{host}:')
+
+            # use ssh key for authentication on the target machine
+            if ssh_key_path == '':
+                ssh_key: pathlib.Path = pathlib.Path(f'~/.ssh/{host}')
+            # make sure the ssh key exists
+            # TODO find a way to do this non-interactively
+            lib.Sys.ensure_ssh_key(user, host, ssh_key)
+
+            # create a temporary directory
             temp_dir: pathlib.Path = lib.Sys.make_temporary_directory(
                     user, host)
-            self.send_lib(temp_dir, user, host)
-
+            # send the library to the target machine
+            self.send_lib(temp_dir, user, host, ssh_key)
+            # determine the path to the user provided plugins
+            # use fallback if none is provided
             user_plugins_path: pathlib.Path = (
-                    pathlib.Path(user_plugins) if user_plugins != '' else
+                    pathlib.Path(user_plugins_dir)
+                    if user_plugins_dir != '' else
                     pathlib.Path('~/.config/upset/plugins'))
 
             task: Task
             for task in plan:
-                self.send_plugin(task, temp_dir, user, host, user_plugins_path)
+                # send plugin to the target machine
+                # plugins that have already been sent are not sent
+                # twice (see Upset._sent_plugins)
+                self.send_plugin(task, temp_dir, user, host, ssh_key,
+                        user_plugins_path)
+                # run task for every set of variables in `task.foreach`
+                # if it is empty provide a fake task
                 if len(task.foreach) == 0:
                     task.foreach = [{}]
                 for var in task.foreach:
+                    # replace all variables in the task description
                     expanded_task: Task = self.expand_task(task, var)
-                    self.send_files(expanded_task, temp_dir, user, host)
-                    self.run_task(expanded_task, temp_dir, user, host, password,
-                            var)
+                    # send the necessary files to the target machine
+                    # the files might contain variables that are
+                    # expanded differently for every iteration
+                    # so the call to `Upset.send_files()` is in the loop
+                    # files that have already been sent are not sent
+                    # twice (see Upset._sent_files)
+                    self.send_files(expanded_task, temp_dir, user, host,
+                            ssh_key)
+                    # run the task
+                    self.run_task(expanded_task, temp_dir, user, host, ssh_key,
+                            password, var)
         except lib.UpsetError as error:
             logger.error(error)
         finally:
@@ -150,7 +180,7 @@ class Upset:
         return tasklist
 
     def send_lib(self, temporary_directory: pathlib.Path, user: str,
-            host: str) -> None:
+            host: str, ssh_key: pathlib.Path = pathlib.Path()) -> None:
         """Send the library if it has not already been sent.
 
         Args:
@@ -158,6 +188,7 @@ class Upset:
                 the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
+            ssh_key: The ssh key or identity to use.
 
         Raises:
             lib.UpsetError: Raised if the transfer failed.
@@ -170,7 +201,7 @@ class Upset:
                         pathlib.Path(pkg_resources.resource_filename(
                             __name__, 'lib.py')),
                         temporary_directory,
-                        direction='to', user=user, host=host))
+                        direction='to', user=user, host=host, ssh_key=ssh_key))
         except lib.UpsetSysError as error:
             raise lib.UpsetError('could not send lib') from error
 
@@ -221,7 +252,8 @@ class Upset:
 
     # pylint: disable=too-many-arguments
     def send_plugin(self, task: Task, temporary_directory: pathlib.Path,
-            user: str, host: str, user_plugins: pathlib.Path) -> None:
+            user: str, host: str, ssh_key: pathlib.Path = pathlib.Path(),
+            user_plugins: pathlib.Path = pathlib.Path()) -> None:
         """Send the required plugin if it has not already been sent.
 
         Args:
@@ -230,6 +262,7 @@ class Upset:
                 the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
+            ssh_key: The ssh key or identity to use.
             user_plugins: Path to user defined plugins.
 
         Raises:
@@ -255,7 +288,7 @@ class Upset:
                     lib.Sys.build_scp_command(
                         plugin,
                         temporary_directory,
-                        direction='to', user=user, host=host))
+                        direction='to', user=user, host=host, ssh_key=ssh_key))
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
                     f'could not send plugin "{task.plugin}"') from error
@@ -263,7 +296,8 @@ class Upset:
         self._sent_plugins.append(task.plugin)
 
     def send_files(self, task: Task, temporary_directory: pathlib.Path,
-            user: str, host: str) -> None:
+            user: str, host: str,
+            ssh_key: pathlib.Path = pathlib.Path()) -> None:
         """Send files to target if they have not already been sent.
 
         Args:
@@ -272,6 +306,7 @@ class Upset:
                 the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
+            ssh_key: The ssh key or identity to use.
 
         Raises:
             lib.UpsetError: Raised if the transfer failed.
@@ -287,7 +322,8 @@ class Upset:
                             file_path,
                             temporary_directory /
                                 lib.Helper.create_unique_file_name(file_path),
-                            direction='to', user=user, host=host))
+                            direction='to', user=user, host=host,
+                            ssh_key=ssh_key))
             except lib.UpsetSysError as error:
                 raise lib.UpsetError(
                         f'could not send file "{file}"') from error
@@ -295,7 +331,8 @@ class Upset:
 
     # pylint: disable=too-many-arguments
     def run_task(self, task: Task, temporary_directory: pathlib.Path,
-            user: str, host: str, password: str, for_task: dict[str, str],
+            user: str, host: str, ssh_key: pathlib.Path,
+            password: str, for_task: dict[str, str],
             python: str = '/usr/bin/python3') -> str:
         """Run the task on the target machine.
 
@@ -305,6 +342,7 @@ class Upset:
                 the target machine.
             user: The user to log in with.
             host: The host to execute the task on.
+            ssh_key: The ssh key or identity to use.
             password: The password to use `sudo` on the target machine.
             python: The python executable on the target machine.
 
@@ -319,7 +357,7 @@ class Upset:
                         lib.Helper.encode_data(
                             self.transform_task_to_data(task,
                                 for_task))],
-                        password, user, host))
+                        password, user, host, ssh_key))
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
                     f'could not run plugin "{task.plugin}"') from error
