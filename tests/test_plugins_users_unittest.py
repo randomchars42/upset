@@ -1,8 +1,7 @@
 """Test plugin "Paths"."""
 
-import grp
+import argparse
 import logging
-import pwd
 import sys
 import unittest
 
@@ -19,6 +18,9 @@ root_logger: logging.Logger = logging.getLogger()
 root_logger.setLevel(logging.ERROR)
 root_logger.addHandler(logging_handler)
 logger: logging.Logger = logging.getLogger(__name__)
+
+# enable tests that need interaction with the user
+require_interaction: bool = False
 
 # pylint: disable=too-many-public-methods
 class TestPluginsUsers(unittest.TestCase):
@@ -63,7 +65,8 @@ class TestPluginsUsers(unittest.TestCase):
         with self.assertRaises(lib.UpsetError):
             self._users.user_in_group('!kitty', 'root')
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_ensure_user(self) -> None:
         """Ensure user exists / does not exist."""
         self._users.ensure_user('root')
@@ -76,7 +79,8 @@ class TestPluginsUsers(unittest.TestCase):
         self._users.ensure_user_absent('upsettestuser')
         self.assertFalse(self._users.user_exists('upsettestuser'))
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_ensure_group(self) -> None:
         """Ensure group exists / does not exist."""
         self._users.ensure_group('root')
@@ -86,7 +90,8 @@ class TestPluginsUsers(unittest.TestCase):
         self._users.ensure_group_absent('upsettestgroup')
         self.assertFalse(self._users.group_exists('upsettestgroup'))
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_ensure_in_group(self) -> None:
         """Ensure user is / is not in group."""
         self._users.ensure_in_group('root', 'root')
@@ -99,4 +104,30 @@ class TestPluginsUsers(unittest.TestCase):
         self.assertFalse(self._users.user_in_group('root', 'games'))
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i',
+            '--interactive',
+            help='run tests that require interaction',
+            action='store_true',
+            default=False,
+            type=bool)
+    parser.add_argument('-v',
+            '--verbosity',
+            help='increase verbosity',
+            action='count',
+            default=0)
+
+    args = parser.parse_args()
+
+    levels: list[str] = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
+    # there are only levels 0 to 3
+    # everything else will cause the index to be out of bounds
+    root_logger.setLevel(levels[min(args.verbosity, 3)])
+    require_interaction = args.interactive
+
+    # remove our args because we don't want to send them to unittest
+    for x in sum([h._long_opts+h._short_opts for h in parser.option_list],[]):
+        if x in sys.argv:
+            sys.argv.remove(x)
+
     unittest.main()

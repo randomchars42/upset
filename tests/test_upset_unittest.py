@@ -1,5 +1,6 @@
 """Test Upset."""
 
+import argparse
 import getpass
 import json
 import logging
@@ -20,6 +21,9 @@ root_logger: logging.Logger = logging.getLogger()
 root_logger.setLevel(logging.ERROR)
 root_logger.addHandler(logging_handler)
 logger: logging.Logger = logging.getLogger(__name__)
+
+# enable tests that need interaction with the user
+require_interaction: bool = False
 
 # pylint: disable=too-many-public-methods
 class TestUpsetUpset(unittest.TestCase):
@@ -189,7 +193,8 @@ class TestUpsetUpset(unittest.TestCase):
                 }),
                 {'user': 'user1', 'group': 'group1'})
 
-    @unittest.skip('do not ask for sudo password by default')
+    @unittest.skipUnless(require_interaction,
+            'do not require interaction with the user')
     def test_run_plugin(self) -> None:
         """Run a plugin."""
         fakeplugin: pathlib.Path = self._base_dir / 'fakeplugin.py'
@@ -210,4 +215,24 @@ class TestUpsetUpset(unittest.TestCase):
                 'a\nb\n')
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i',
+            '--interactive',
+            help='run tests that require interaction',
+            action='store_true',
+            default=False,
+            type=bool)
+    parser.add_argument('-v',
+            '--verbosity',
+            help='increase verbosity',
+            action='count',
+            default=0)
+
+    args = parser.parse_args()
+
+    levels: list[str] = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
+    # there are only levels 0 to 3
+    # everything else will cause the index to be out of bounds
+    root_logger.setLevel(levels[min(args.verbosity, 3)])
+    require_interaction = args.interactive
     unittest.main()
