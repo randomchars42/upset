@@ -208,7 +208,8 @@ class TestUpsetUpset(unittest.TestCase):
                 'import json\n'\
                 'import sys\n'\
                 'print('\
-                'json.loads(base64.b64decode(sys.argv[1]).decode())["file"])',
+                'json.loads(base64.b64decode(sys.argv[1]).decode())'\
+                    '["variables"]["var_1"])',
                 encoding='utf-8')
         self.assertEqual(
                 self._upset.run_task(
@@ -217,7 +218,7 @@ class TestUpsetUpset(unittest.TestCase):
                     user='', host='', ssh_key=pathlib.Path(),
                     password=getpass.getpass(),
                     for_task={}),
-                'a\nb\n')
+                'Var 1')
 
 if __name__ == '__main__':
     unittest.main()
