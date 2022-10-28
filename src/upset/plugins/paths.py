@@ -54,10 +54,17 @@ Examples::
                 # expression) in a file
                 # the default is to insert the line at the end ("")
                 {
-                    "path": "/home/{user}/dir",
+                    "path": "/home/{user}/file",
                     "ensure": "in_file",
                     "text": "some text",
                     "insert_at": "",
+                    "backup": true,
+                },
+                # describe a directory
+                {
+                    "path": "/home/{user}/dir",
+                    "ensure": "dir",
+                    "permissions": ["{user}", "", 0o600],
                     "backup": true,
                 },
                 # describe a symlink
@@ -178,7 +185,7 @@ class Paths(lib.Plugin):
                 subtask['backup'])
 
     def ensure_dir(self, subtask: Any) -> None:
-        """Ensure a file is present.
+        """Ensure a directory is present.
 
         Args:
             subtask: The object in the `Task.variables.paths` list.
