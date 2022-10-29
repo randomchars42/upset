@@ -28,12 +28,19 @@ Examples::
                     #  - "asis": only create file from template if no
                     #       file is present
                     "mode": "update",
-                    # permissions `[user, group, mode]`:
-                    # an empty string for either the user or the group
-                    # will leave the respective property "as is"
+                    # permissions `"user,group,mode"`:
+                    # a "-" means for either the user, the group or the
+                    # mode will leave the respective property "as is"
                     # if a new file is created, "as is" means
-                    # "root:root"
-                    "permissions": ["root", "root", 0o644],
+                    # "root:root" and the mode as
+                    # a "." for either property means take the value of
+                    # the parent (only makes sense for directories)
+                    # if you want to be more specific spefiy a value
+                    # probably using a variable, e.g.,
+                    # "{user},{group},-"
+                    # "-" is short for "-,-,-"
+                    # "." is short for ".,.,."
+                    "permissions": "root,root,644",
                     # create a numbered backup
                     "backup": true,
                 },
@@ -45,7 +52,7 @@ Examples::
                     "ensure": "file",
                     "template": "template2",
                     "mode": "update",
-                    "permissions": ["{user}", "", 0o600],
+                    "permissions": "{user},{group},600",
                     "backup": true,
                 },
                 # decribe a file that must exist and contain defined
@@ -64,7 +71,16 @@ Examples::
                 {
                     "path": "/home/{user}/dir",
                     "ensure": "dir",
-                    "permissions": ["{user}", "", 0o600],
+                    "permissions": "{user},.,600",
+                    "backup": true,
+                },
+                # describe a path
+                # you need to specify permissions for each node except
+                # root
+                {
+                    "path": "/home/{user}/long/path/to/ensure",
+                    "ensure": "path",
+                    "permissions": "/-/-/{user},{group},700,./././.",
                     "backup": true,
                 },
                 # describe a symlink
@@ -85,7 +101,8 @@ Examples::
                 "greeting": "Hello",
             },
         },
-        "foreach": [{"user": "user1"}, {"user": "user2"}],
+        "foreach": [{"user": "user1", "group": "group1"},
+            {"user": "user2", "group": "group2"}],
         "files": {
             "template1": "/path/to/my/template1",
             # if a file contains variables that are set the variables
@@ -131,6 +148,8 @@ class Paths(lib.Plugin):
                 self.ensure_file(subtask)
             elif subtask['ensure'] == 'dir':
                 self.ensure_dir(subtask)
+            elif subtask['ensure'] == 'path':
+                self.ensure_path(subtask)
             elif subtask['ensure'] == 'symlink':
                 self.ensure_symlink(subtask)
             elif subtask['ensure'] == 'in_file':
@@ -154,10 +173,9 @@ class Paths(lib.Plugin):
             subtask: The object in the `Task.variables.paths` list.
         """
         if 'permissions' in subtask:
-            permissions: lib.PermissionSet = lib.PermissionSet(
-                    *subtask['permissions'])
+            permissions: str = subtask['permissions']
         else:
-            permissions = lib.PermissionSet('', '', 0o600)
+            permissions = '.,.,600'
 
         if (not 'template' in subtask or
                 not subtask['template'] in self.data['files']):
@@ -191,12 +209,30 @@ class Paths(lib.Plugin):
             subtask: The object in the `Task.variables.paths` list.
         """
         if 'permissions' in subtask:
-            permissions: lib.PermissionSet = lib.PermissionSet(
-                    *subtask['permissions'])
+            permissions: str = subtask['permissions']
         else:
-            permissions = lib.PermissionSet('', '', 0o700)
+            permissions = '.,.,700'
 
         lib.Fs.ensure_dir(
+                pathlib.Path(subtask['path']),
+                permissions,
+                subtask['backup'])
+
+    def ensure_path(self, subtask: Any) -> None:
+        """Ensure a path is present.
+
+        The permissions will be applied to ...... TODO
+
+        Args:
+            subtask: The object in the `Task.variables.paths` list.
+        """
+        if 'permissions' in subtask:
+            permissions: str = subtask['permissions']
+        else:
+            raise lib.UpsetError('no permissions specified for path '
+                    f'"{subtask["path"]}"')
+
+        lib.Fs.ensure_path(
                 pathlib.Path(subtask['path']),
                 permissions,
                 subtask['backup'])
