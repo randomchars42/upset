@@ -218,10 +218,29 @@ class TestLibFs(unittest.TestCase):
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
 
     def test_ensure_dir(self) -> None:
-        """Ensure link exists."""
+        """Ensure directory exists."""
         pathlib.Path(self._base_dir / 'a').touch()
         lib.Fs.ensure_dir(pathlib.Path(self._base_dir / 'a'),
                 '.,.,-', backup=True)
+        self.assertTrue(pathlib.Path(self._base_dir / 'a').is_dir())
+        self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
+
+    def test_ensure_path(self) -> None:
+        """Ensure link exists."""
+        pathlib.Path(self._base_dir / 'a').touch()
+        target_path: pathlib.Path = pathlib.Path(self._base_dir / 'a').resolve()
+        # permissions for new directory
+        permissions: str = '/-,-,700'
+        for _ in range(len(target_path.parts) - 2):
+            # prepend simple permissions for all preceding directories
+            permissions = '/-' + permissions
+        lib.Fs.ensure_path(target_path, permissions, backup=True)
+        permissions = '/-,-,700'
+        for _ in range(len(target_path.parts) - 3):
+            # this time one directory short
+            permissions = '/-' + permissions
+        with self.assertRaises(lib.UpsetFsError):
+            lib.Fs.ensure_path(target_path, permissions, backup=True)
         self.assertTrue(pathlib.Path(self._base_dir / 'a').is_dir())
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
 
