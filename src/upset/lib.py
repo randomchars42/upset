@@ -219,7 +219,7 @@ class Fs:
             UpsetFsError: If filesystem interaction fails.
         """
         logger.info('ensuring directory "%s"', str(path))
-        # TODO do not work with relative paths
+
         if path.is_dir():
             logging.debug('directory "%s" already present', str(path))
             Fs.ensure_perms(path, permissions)
@@ -271,9 +271,6 @@ class Fs:
             UpsetFsError: If filesystem interaction fails.
         """
         logger.info('ensuring path "%s"', str(path))
-
-        if not path.absolute():
-            raise UpsetFsError(f'cannot ensure relative path "{path}"')
 
         permissions: list[str] = path_permissions.split('/')
 
