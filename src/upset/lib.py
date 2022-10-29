@@ -330,8 +330,8 @@ class Fs:
             return
 
 
+        parent: pathlib.Path = path.resolve().parent
         if permissions == '.':
-            parent: pathlib.Path = path.resolve().parent
             owner: str = parent.owner()
             group: str = parent.group()
             # stat.S_IMODE will return a decimal representation of the
@@ -345,6 +345,10 @@ class Fs:
         else:
             try:
                 owner,group,mode = permissions.split(',')
+                owner = owner if owner != '.' else parent.owner()
+                group = group if group != '.' else parent.group()
+                mode = mode if mode != '.' else oct(
+                        stat.S_IMODE(parent.lstat().st_mode))[2:]
             except ValueError as error:
                 raise UpsetFsError(
                         f'malformed permissions "{permissions}"') from error
