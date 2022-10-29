@@ -237,6 +237,60 @@ class Fs:
         Fs.ensure_perms(path, permissions)
 
     @staticmethod
+    def ensure_path(path: pathlib.Path, path_permissions: str,
+            backup: bool) -> None:
+        """Make sure directory exists.
+
+        If the directory does not exist it will be created. If anything
+        but a symlink exists it will be backed up (see `Fs.backup()`)
+        depending on `backup`.
+
+        Permissions: The permission string is split by "/". Each part is
+        expected to be an interpretable permission string (see
+        `lib.Fs.ensure_perms()`). The number of parts must match the
+        number of directories in the path:
+
+        E,g,:
+
+        For a path `/home/USER/.config` The string could look like:
+        - `"/-/-/-"` to leave everything as it was before or was
+            created using the umask and root(!) as owner and group.
+        - `"/-/-/."` leaves `home` and `USER` as before and sets
+            `.config` to the same permissions as `USER`
+        - `"/-/-/user,group,-"`: change user and group but leave mode as
+            it is.
+        - `"/-/-/user,group,700"`: being even more specific.
+
+        Args:
+            path: The path to ensure a symlink exists.
+            path_permissions: The permissions of the file. See above
+            backup: Create a backup (see `Fs.backup()`; default is
+                `True`).
+
+        Raises:
+            UpsetFsError: If filesystem interaction fails.
+        """
+        logger.info('ensuring path "%s"', str(path))
+
+        if not path.absolute():
+            raise UpsetFsError(f'cannot ensure relative path "{path}"')
+
+        permissions: list[str] = path_permissions.split('/')
+
+        if len(permissions) != len(path.parts):
+            raise UpsetFsError(f'permissions "{path_permissions}" do not '
+                    f'match path "{path}"')
+
+        i: int = 1
+        for part in path.parts:
+            i += 1
+            if part == '/':
+                permissions.pop(0)
+                continue
+            Fs.ensure_dir(pathlib.Path(f'/{"/".join(path.parts[1:i])}'),
+                    permissions.pop(0), backup)
+
+    @staticmethod
     def ensure_perms(path: pathlib.Path, permissions: str) -> None:
         """Ensure a file or directory has the given permissions.
 
