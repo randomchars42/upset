@@ -2,7 +2,9 @@
 
 import logging
 import os
+import pathlib
 import sys
+import time
 import unittest
 
 from typing import Any
@@ -66,8 +68,13 @@ class TestPluginsAptPackages(unittest.TestCase):
     @unittest.skipUnless(require_interaction,
             'do not require interaction with the user')
     def test_apt_do(self) -> None:
-        """Ensure a package is installed."""
+        """Ensure repositories are up to date."""
         self._apt_packages.apt_do('update')
+        # determine last update
+        # https://askubuntu.com/questions/410247/#410259
+        last_update: float = pathlib.Path(
+                '/var/cache/apt/pkgcache.bin').stat().st_mtime
+        self.assertTrue(last_update > time.time() - 60)
         with self.assertRaises(lib.UpsetError):
             self._apt_packages.apt_do('something stupid')
 

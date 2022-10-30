@@ -135,8 +135,7 @@ class TestLibFs(unittest.TestCase):
         lib.Fs.ensure_file(pathlib.Path(self._base_dir / 'a'),
                 lib.Template(file=pathlib.Path(self._base_dir / 't'),
                     substitutes = {'user': 'admin', 'greeting': 'Greetings'}),
-                lib.PermissionSet(owner = '', group = '', mode = 0o644),
-                mode = 'force', backup = True)
+                '.,.,-',  mode='force', backup=True)
         self.assertTrue(pathlib.Path(self._base_dir / 'a').exists())
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
         self.assertEqual(
@@ -152,8 +151,7 @@ class TestLibFs(unittest.TestCase):
         lib.Fs.ensure_file(pathlib.Path(self._base_dir / 'a'),
                 lib.Template(file=pathlib.Path(self._base_dir / 't'),
                     substitutes = {'user': 'admin', 'greeting': 'Greetings'}),
-                lib.PermissionSet(owner = '', group = '', mode = 0o644),
-                mode = 'update', backup = True)
+                '.,.,-',  mode='force', backup=True)
         self.assertTrue(pathlib.Path(self._base_dir / 'a').exists())
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
         self.assertEqual(
@@ -172,8 +170,7 @@ class TestLibFs(unittest.TestCase):
         lib.Fs.ensure_file(pathlib.Path(self._base_dir / 'a'),
                 lib.Template(file=pathlib.Path(self._base_dir / 't'),
                     substitutes = {'user': 'admin', 'greeting': 'Greetings'}),
-                lib.PermissionSet(owner = '', group = '', mode = 0o644),
-                mode = 'update', backup = True)
+                '.,.,-',  mode='update', backup=True)
         self.assertTrue(pathlib.Path(self._base_dir / 'a').exists())
         self.assertFalse(pathlib.Path(self._base_dir / 'a~').exists())
         self.assertEqual(
@@ -189,8 +186,7 @@ class TestLibFs(unittest.TestCase):
         lib.Fs.ensure_file(pathlib.Path(self._base_dir / 'a'),
                 lib.Template(file=pathlib.Path(self._base_dir / 't'),
                     substitutes = {'user': 'admin', 'greeting': 'Greetings'}),
-                lib.PermissionSet(owner = '', group = '', mode = 0o644),
-                mode = 'asis', backup = True)
+                '.,.,-', mode = 'asis', backup = True)
         self.assertTrue(pathlib.Path(self._base_dir / 'a').exists())
         self.assertFalse(pathlib.Path(self._base_dir / 'a~').exists())
         self.assertEqual(
@@ -204,15 +200,13 @@ class TestLibFs(unittest.TestCase):
             lib.Fs.ensure_file(pathlib.Path(self._base_dir / 'a'),
                     lib.Template(file=pathlib.Path(self._base_dir / 't'),
                         substitutes = {}),
-                    lib.PermissionSet(owner = '', group = '', mode = 0o644),
-                    mode = 'force', backup = True)
+                    '.,.,-',  mode='force', backup=True)
         pathlib.Path(self._base_dir / 't').mkdir()
         with self.assertRaises(lib.UpsetFsError):
             lib.Fs.ensure_file(pathlib.Path(self._base_dir / 'a'),
                     lib.Template(file=pathlib.Path(self._base_dir / 't'),
                         substitutes = {}),
-                    lib.PermissionSet(owner = '', group = '', mode = 0o644),
-                    mode = 'force', backup = True)
+                    '.,.,-',  mode='force', backup=True)
 
     def test_ensure_link(self) -> None:
         """Ensure link exists."""
@@ -224,10 +218,29 @@ class TestLibFs(unittest.TestCase):
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
 
     def test_ensure_dir(self) -> None:
-        """Ensure link exists."""
+        """Ensure directory exists."""
         pathlib.Path(self._base_dir / 'a').touch()
         lib.Fs.ensure_dir(pathlib.Path(self._base_dir / 'a'),
-                lib.PermissionSet(), backup = True)
+                '.,.,-', backup=True)
+        self.assertTrue(pathlib.Path(self._base_dir / 'a').is_dir())
+        self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
+
+    def test_ensure_path(self) -> None:
+        """Ensure link exists."""
+        pathlib.Path(self._base_dir / 'a').touch()
+        target_path: pathlib.Path = pathlib.Path(self._base_dir / 'a').resolve()
+        # permissions for new directory
+        permissions: str = '/-,-,700'
+        for _ in range(len(target_path.parts) - 2):
+            # prepend simple permissions for all preceding directories
+            permissions = '/-' + permissions
+        lib.Fs.ensure_path(target_path, permissions, backup=True)
+        permissions = '/-,-,700'
+        for _ in range(len(target_path.parts) - 3):
+            # this time one directory short
+            permissions = '/-' + permissions
+        with self.assertRaises(lib.UpsetFsError):
+            lib.Fs.ensure_path(target_path, permissions, backup=True)
         self.assertTrue(pathlib.Path(self._base_dir / 'a').is_dir())
         self.assertTrue(pathlib.Path(self._base_dir / 'a~').exists())
 

@@ -102,7 +102,7 @@ class TestPluginsPaths(unittest.TestCase):
             'ensure': 'file',
             'template': 'template1',
             'mode': 'force',
-            'permissions': ['', '', 0o644],
+            'permissions': '.,.,-',
             'backup': True
             })
         self.assertTrue(pathlib.Path(self._base_dir / 'a').exists())
@@ -119,7 +119,7 @@ class TestPluginsPaths(unittest.TestCase):
                 'ensure': 'file',
                 'template': 'template',
                 'mode': 'force',
-                'permissions': ['', '', 0o644],
+                'permissions': '.,.,-',
                 'backup': True
                 })
 
@@ -142,7 +142,7 @@ class TestPluginsPaths(unittest.TestCase):
         self._paths.ensure_dir({
             'path': str(self._base_dir / 'a'),
             'ensure': 'dir',
-            'permissions': ['', '', 0o644],
+            'permissions': '.,.,-',
             'backup': True
             })
         self.assertTrue(pathlib.Path(self._base_dir / 'a').is_dir())
@@ -159,7 +159,7 @@ class TestPluginsPaths(unittest.TestCase):
             'ensure': 'in_file',
             'text': '\nc="b"',
             'insert_at': '',
-            'permissions': ['', '', 0o644],
+            'permissions': '.,.,-',
             'backup': True
             })
         self.assertEqual(
@@ -176,7 +176,7 @@ class TestPluginsPaths(unittest.TestCase):
             'ensure': 'in_file',
             'text': '\nc="b"',
             'insert_at': '',
-            'permissions': ['', '', 0o644],
+            'permissions': '.,.,-',
             'backup': True
             })
         self.assertEqual(
@@ -193,7 +193,7 @@ class TestPluginsPaths(unittest.TestCase):
             'ensure': 'in_file',
             'text': '\nc="d"',
             'insert_at': '\nc="b"',
-            'permissions': ['', '', 0o644],
+            'permissions': '.,.,-',
             'backup': True
             })
         self.assertEqual(

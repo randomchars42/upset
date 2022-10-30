@@ -34,22 +34,6 @@ class Template():
     file: pathlib.Path
     substitutes: dict[str, str]
 
-@dataclasses.dataclass
-class PermissionSet():
-    """Holds a basic representation of UNIX permissions.
-
-    Attributes:
-        owner: The file owner (existence will be checked; `''` to leave
-            as is).
-        group: The group (existence will not be checked; `''` to leave
-            as is).
-        mode: The file mode (octal value; default `0o600`).
-    """
-    owner: str = ''
-    group: str = ''
-    mode: int = 0o600
-
-
 class UpsetError(Exception):
     """Custom exception."""
 
@@ -122,8 +106,7 @@ class Fs:
 
     @staticmethod
     def ensure_file(path: pathlib.Path, template: Template,
-            permissions: PermissionSet,
-            mode: str = 'force', backup: bool = True) -> None:
+            permissions: str, mode: str = 'force', backup: bool = True) -> None:
         """Make sure a file exists.
 
         If the file does not exist it will be created by interpolating
@@ -136,6 +119,7 @@ class Fs:
             path: The path to ensure a file.
             template: A template to be used to fill the file with.
             permissions: The permissions of the file.
+                (see `lib.Fs.ensure_perms()`).
             mode: What to do if the file exists
                 ['asis'|'force'|'update']?
                 'as_is': will leave the file as is if it exists.
@@ -216,7 +200,7 @@ class Fs:
         path.symlink_to(target)
 
     @staticmethod
-    def ensure_dir(path: pathlib.Path, permissions: PermissionSet,
+    def ensure_dir(path: pathlib.Path, permissions: str,
             backup: bool) -> None:
         """Make sure directory exists.
 
@@ -226,7 +210,8 @@ class Fs:
 
         Args:
             path: The path to ensure a symlink exists.
-            permissions: The permissions of the file.
+            permissions: The permissions of the file
+                (see `lib.Fs.ensure_perms()`).
             backup: Create a backup (see `Fs.backup()`; default is
                 `True`).
 
@@ -234,6 +219,7 @@ class Fs:
             UpsetFsError: If filesystem interaction fails.
         """
         logger.info('ensuring directory "%s"', str(path))
+
         if path.is_dir():
             logging.debug('directory "%s" already present', str(path))
             Fs.ensure_perms(path, permissions)
@@ -251,44 +237,140 @@ class Fs:
         Fs.ensure_perms(path, permissions)
 
     @staticmethod
-    def ensure_perms(path: pathlib.Path, permissions: PermissionSet) -> None:
-        """Ensure a file or directory has the given permissions.
+    def ensure_path(path: pathlib.Path, path_permissions: str,
+            backup: bool) -> None:
+        """Make sure directory exists.
+
+        If the directory does not exist it will be created. If anything
+        but a symlink exists it will be backed up (see `Fs.backup()`)
+        depending on `backup`.
+
+        Permissions: The permission string is split by "/". Each part is
+        expected to be an interpretable permission string (see
+        `lib.Fs.ensure_perms()`). The number of parts must match the
+        number of directories in the path:
+
+        E,g,:
+
+        For a path `/home/USER/.config` The string could look like:
+        - `"/-/-/-"` to leave everything as it was before or was
+            created using the umask and root(!) as owner and group.
+        - `"/-/-/."` leaves `home` and `USER` as before and sets
+            `.config` to the same permissions as `USER`
+        - `"/-/-/user,group,-"`: change user and group but leave mode as
+            it is.
+        - `"/-/-/user,group,700"`: being even more specific.
 
         Args:
-            path: The path to ensure a file.
-            permissions: The permissions to apply
+            path: The path to ensure a symlink exists.
+            path_permissions: The permissions of the file. See above
+            backup: Create a backup (see `Fs.backup()`; default is
+                `True`).
 
         Raises:
             UpsetFsError: If filesystem interaction fails.
         """
-        current_mode = oct(stat.S_IMODE(path.lstat().st_mode))
+        logger.info('ensuring path "%s"', str(path))
+
+        permissions: list[str] = path_permissions.split('/')
+
+        if len(permissions) != len(path.parts):
+            raise UpsetFsError(f'permissions "{path_permissions}" do not '
+                    f'match path "{path}"')
+
+        i: int = 1
+        for part in path.parts:
+            i += 1
+            if part == '/':
+                permissions.pop(0)
+                continue
+            Fs.ensure_dir(pathlib.Path(f'/{"/".join(path.parts[1:i])}'),
+                    permissions.pop(0), backup)
+
+    @staticmethod
+    def ensure_perms(path: pathlib.Path, permissions: str) -> None:
+        """Ensure a file or directory has the given permissions.
+
+        For ease of use permissions are indicated using a string::
+
+            `"user1,group1,755"`
+
+        Translates to: set `owner` to `"user1"`, `group` to `"group1"`
+        and mode to `0755`.
+
+        Each portion can be left as is by writing "-"::
+
+            `"user1,-,-"`
+
+        This will set only the owner while leaving group and mode as is.
+
+        So, "-,-,-" leaves everything as it is. So does "-" (shorter
+        for your convenience).
+
+        "." is interpreted as: use the same permission as the parent
+        directory (so it does only make sense on directories and can't
+        be applied to root - but you wouldn't change root anyway, would
+        you?): ".,group2,.", ..., ".,.,." (or short ".")
+
+        Args:
+            path: The path to ensure a file.
+            permissions: The permissions to apply.
+
+        Raises:
+            UpsetFsError: If filesystem interaction fails.
+        """
+
+        if permissions in ('-', '-,-,-'):
+            # leave everything as it is
+            return
 
         if path.is_symlink():
             logger.warning('cannot change permissions on symlink "%s"',
                     str(path))
             return
 
-        logging.debug('current mode: %s; should be %s', str(current_mode),
-                str(permissions.mode))
+
+        parent: pathlib.Path = path.resolve().parent
+        if permissions == '.':
+            owner: str = parent.owner()
+            group: str = parent.group()
+            # stat.S_IMODE will return a decimal representation of the
+            # octal value, e.g. 493 for 0o755
+            # we want a string that can be treated the same way as user
+            # input that would be like "755"
+            # so we use `oct()` which returns a string like:
+            # oct(493) == "0o755"
+            # and remove the "0o" part
+            mode: str = oct(stat.S_IMODE(parent.lstat().st_mode))[2:]
+        else:
+            try:
+                owner,group,mode = permissions.split(',')
+                owner = owner if owner != '.' else parent.owner()
+                group = group if group != '.' else parent.group()
+                mode = mode if mode != '.' else oct(
+                        stat.S_IMODE(parent.lstat().st_mode))[2:]
+            except ValueError as error:
+                raise UpsetFsError(
+                        f'malformed permissions "{permissions}"') from error
+
+        current_mode: str = oct(stat.S_IMODE(path.lstat().st_mode))[2:]
+
+        logging.debug('current mode: %s; should be %s', current_mode,
+                mode)
 
         try:
-            if current_mode != oct(permissions.mode):
+            if mode not in (current_mode, '-'):
                 logger.info('changing permissions of file "%s"', str(path))
-                path.chmod(permissions.mode)
-            if path.owner() != permissions.owner:
-                if permissions.owner == '':
-                    owner: int = -1
-                else:
-                    owner = pwd.getpwnam(permissions.owner).pw_uid
+                # interpret string as octal
+                path.chmod(int(mode, 8))
+            if owner not in (path.owner(), '-'):
                 logger.info('changing owner of file "%s"', str(path))
-                os.chown(str(path), uid=owner, gid=-1, follow_symlinks=False)
-            if path.group() != permissions.group:
-                if permissions.group == '':
-                    group: int = -1
-                else:
-                    group = grp.getgrnam(permissions.group).gr_gid
+                os.chown(str(path), uid=pwd.getpwnam(owner).pw_uid, gid=-1,
+                        follow_symlinks=False)
+            if group not in (path.group(), '-'):
                 logger.info('changing group of file "%s"', str(path))
-                os.chown(str(path), uid=-1, gid=group, follow_symlinks=False)
+                os.chown(str(path), uid=-1, gid=grp.getgrnam(group).gr_gid,
+                        follow_symlinks=False)
         except OSError as error:
             raise UpsetFsError(
                     f'could not change permissions on "{path}"') from error
