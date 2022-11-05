@@ -151,7 +151,7 @@ class Upset:
                     # run the task
                     output: str = self.run_task(expanded_task, temp_dir, user,
                             host, ssh_key, password, var)
-                    print(output)
+                    print(output.strip())
         except lib.UpsetError as error:
             logger.error(error)
             traceback.print_exc(file=sys.stdout)
@@ -376,8 +376,11 @@ class Upset:
             lib.UpsetError: Raised if the transfer failed.
         """
         try:
-            logger.info('running task "%s" for "%s"', task.name,
-                    str(for_task))
+            if len(for_task) > 1:
+                logger.info('running task "%s" for "%s"', task.name,
+                        str(for_task))
+            else:
+                logger.info('running task "%s"', task.name)
             command: str = (f'cd {temporary_directory.parent} && '
                         f'{python} -m '
                         f'upset.{task.plugin} ')
@@ -389,7 +392,8 @@ class Upset:
                         password, user, host, ssh_key))
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
-                    f'could not run plugin "{task.plugin}"') from error
+                    f'could not run task "{task.name}" on plugin '
+                    f'"{task.plugin}"') from error
 
     def transform_task_to_data(self, task: Task, for_variable: dict) -> Any:
         """Transform the information in a task for the remote plugin.
