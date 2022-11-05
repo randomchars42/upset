@@ -358,7 +358,7 @@ class Upset:
     def run_task(self, task: Task, temporary_directory: pathlib.Path,
             user: str, host: str, ssh_key: pathlib.Path,
             password: str, for_task: dict[str, str],
-            python: str = '/usr/bin/python3') -> str:
+            python: str = 'python3') -> str:
         """Run the task on the target machine.
 
         Args:
@@ -369,19 +369,24 @@ class Upset:
             host: The host to execute the task on.
             ssh_key: The ssh key or identity to use.
             password: The password to use `sudo` on the target machine.
+            for_task: The current value(s) of `Task.foreach` which
+                will be added to the task.
             python: The python executable on the target machine.
 
         Raises:
             lib.UpsetError: Raised if the transfer failed.
         """
         try:
+            logger.info('running task "%s" for "%s"', task.name,
+                    str(for_task))
+            command: str = (f'cd {temporary_directory.parent} && '
+                        f'{python} -m '
+                        f'upset.{task.plugin} ')
+            command += lib.Helper.encode_data(
+                            self.transform_task_to_data(task, for_task))
             return lib.Sys.run_command(
                     lib.Sys.build_sudo_command([
-                        python,
-                        str(temporary_directory / f'{task.plugin}.py'),
-                        lib.Helper.encode_data(
-                            self.transform_task_to_data(task,
-                                for_task))],
+                        'bash', '-c ', f'"{command}"'],
                         password, user, host, ssh_key))
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
