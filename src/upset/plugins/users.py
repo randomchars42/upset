@@ -110,10 +110,10 @@ class Users(lib.Plugin):
                 self.ensure_group(subtask['name'], subtask.get('id', ''))
             elif subtask['ensure'] == 'group_absent':
                 self.ensure_group_absent(subtask['name'])
-            elif subtask['ensure'] == 'in_group':
-                self.ensure_in_group(subtask['name'], subtask['group'])
-            elif subtask['ensure'] == 'not_in_group':
-                self.ensure_not_in_group(subtask['name'], subtask['group'])
+            elif subtask['ensure'] == 'in_groups':
+                self.ensure_in_group(subtask['name'], subtask['groups'])
+            elif subtask['ensure'] == 'not_in_groups':
+                self.ensure_not_in_group(subtask['name'], subtask['groups'])
             else:
                 raise lib.UpsetError(
                         f'no such subtask "{subtask["ensure"]}"')
@@ -265,39 +265,41 @@ class Users(lib.Plugin):
         lib.Sys.run_command(lib.Sys.build_command(['delgroup', name],
             sudo=True))
 
-    def ensure_in_group(self, name: str, group: str) -> None:
+    def ensure_in_group(self, name: str, groups: str) -> None:
         """Ensure user is in the given group.
 
         Args:
             name: The user's name.
-            group: The group's name.
+            groups: The groups' names.
         """
-        logger.info('ensuring user "%s" is in group "%s"', name, group)
+        for group in groups:
+            logger.info('ensuring user "%s" is in group "%s"', name, group)
 
-        if self.user_in_group(name, group):
-            return
+            if self.user_in_group(name, group):
+                return
 
-        logger.info('adding user "%s" to group "%s"', name, group)
+            logger.info('adding user "%s" to group "%s"', name, group)
 
-        lib.Sys.run_command(lib.Sys.build_command(
-            ['adduser', name, group], sudo=True))
+            lib.Sys.run_command(lib.Sys.build_command(
+                ['adduser', name, group], sudo=True))
 
-    def ensure_not_in_group(self, name, group):
+    def ensure_not_in_group(self, name, groups):
         """Ensure user is not in the given group.
 
         Args:
             name: The user's name.
-            group: The group's name.
+            groups: The groups's names.
         """
-        logger.info('ensuring user "%s" is not in group "%s"', name, group)
+        for group in groups:
+            logger.info('ensuring user "%s" is not in group "%s"', name, group)
 
-        if not self.user_in_group(name, group):
-            return
+            if not self.user_in_group(name, group):
+                return
 
-        logger.info('removing user "%s" from group "%s"', name, group)
+            logger.info('removing user "%s" from group "%s"', name, group)
 
-        lib.Sys.run_command(lib.Sys.build_command(
-            ['deluser', name, group], sudo=True))
+            lib.Sys.run_command(lib.Sys.build_command(
+                ['deluser', name, group], sudo=True))
 
 if __name__ == '__main__':
     users: Users = Users()
