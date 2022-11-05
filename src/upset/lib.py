@@ -439,11 +439,16 @@ class Sys:
             executable_cand: Optional[str] = shutil.which(command_parts[0])
             command_parts[0] = executable_cand if executable_cand else \
                     command_parts[0]
-            return subprocess.run(command_parts, check=True,
-                    capture_output=True).stdout.decode().strip()
+            result: subprocess.CompletedProcess = subprocess.run(
+                    command_parts, check=True,
+                    capture_output=True)
+            return result.stdout.decode().strip()
         except subprocess.CalledProcessError as error:
             raise UpsetSysError(
-                    f'command {" ".join(command_parts)} returned an error'
+                    f'command {" ".join(command_parts)} returned with '
+                    f'"{error.returncode}":\n'
+                    f'{error.output.decode()}\n'
+                    f'{error.stderr.decode()}'
                     ) from error
 
     @staticmethod
