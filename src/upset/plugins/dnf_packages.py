@@ -69,7 +69,7 @@ class DnfPackages(lib.Plugin):
 
     def run(self) -> None:
         """Do the main work."""
-        for subtask in self.data['variables']['users']:
+        for subtask in self.data['variables']['packages']:
             if subtask['ensure'] == 'present':
                 self.ensure_packages(subtask['names'])
             elif subtask['ensure'] == 'absent':
