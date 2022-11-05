@@ -83,7 +83,7 @@ class Upset:
         self._sent_plugins: list[str] = []
         self._sent_files: list[str] = []
 
-    def run(self, path_plan: str,user: str = '', host: str = '',
+    def run(self, path_plan: str, user: str = '', host: str = '',
             ssh_key_path: str = '', user_plugins_dir: str = '') -> None:
         """Read the plan and execute its task(s).
 
@@ -94,6 +94,7 @@ class Upset:
             ssh_key_path: The ssh key or identity to use.
             user_plugins_dir: Path to user defined plugins.
         """
+        temp_dir: pathlib.Path = pathlib.Path()
         try:
             # read the plan
             plan: Tasklist = self.read_plan(pathlib.Path(path_plan))
@@ -104,13 +105,15 @@ class Upset:
             # use ssh key for authentication on the target machine
             if ssh_key_path == '':
                 ssh_key: pathlib.Path = pathlib.Path(f'~/.ssh/{host}')
+            else:
+                ssh_key = pathlib.Path(ssh_key_path).resolve()
             # make sure the ssh key exists
             # TODO find a way to do this non-interactively
             lib.Sys.ensure_ssh_key(user, host, ssh_key)
 
             # create a temporary directory
-            temp_dir: pathlib.Path = lib.Sys.make_temporary_directory(
-                    user, host)
+            temp_dir = lib.Sys.make_temporary_directory(
+                    user, host, ssh_key)
             # send the library to the target machine
             self.send_lib(temp_dir, user, host, ssh_key)
             # determine the path to the user provided plugins
@@ -149,7 +152,14 @@ class Upset:
             logger.error(error)
         finally:
             try:
-                lib.Sys.remove_temporary_directory(temp_dir)
+                if str(temp_dir) == str(pathlib.Path()):
+                    # this would happen if the temporary directory has
+                    # not yet been created
+                    # do not attempt to remove the current directory
+                    logger.info('no temporary directory to clean up')
+                else:
+                    lib.Sys.remove_temporary_directory(temp_dir, user, host,
+                            ssh_key)
             except lib.UpsetError:
                 logger.error('could not clean up temporary directory "%s"',
                         temp_dir)
@@ -393,7 +403,25 @@ class Upset:
 def main() -> None:
     """Reads cli arguments and runs the main loop."""
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument('plan',
+            help='the plan to execute')
+    parser.add_argument('-u',
+            '--user',
+            help='the user on the remote machine',
+            default='')
+    parser.add_argument('-t',
+            '--target',
+            help='the hostname of the remote machine',
+            default='')
+    parser.add_argument('-k',
+            '--ssh_key',
+            help='the ssh key to log into the remote machine',
+            default='')
+    parser.add_argument('-p',
+            '--plugins',
+            help='the path where additional plugins could be found',
+            default='')
     parser.add_argument('-v',
                         '--verbosity',
                         help='increase verbosity',
@@ -416,6 +444,8 @@ def main() -> None:
     root_logger.setLevel(levels[verbosity_level])
 
     upset: Upset = Upset()
+    upset.run(path_plan=args.plan, user=args.user, host=args.target,
+            ssh_key_path=args.ssh_key, user_plugins_dir=args.plugins)
 
 if __name__ == '__main__':
     main()
