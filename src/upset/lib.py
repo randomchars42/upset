@@ -577,7 +577,8 @@ class Sys:
 
     @staticmethod
     def make_temporary_directory(user: str = '',
-            host: str = '') -> pathlib.Path:
+            host: str = '',
+            ssh_key: pathlib.Path = pathlib.Path()) -> pathlib.Path:
         """Create a temporary directory for `user` on `host`.
 
         Args:
@@ -585,20 +586,22 @@ class Sys:
                 for default behaviour).
             host: The host to execute the task on (see
                 `Sys.build_command()` for default behaviour).
+            ssh_key: The ssh key or identity to use.
 
         Returns:
             The path of the temporary directory.
         """
         try:
             return pathlib.Path(Sys.run_command(
-                Sys.build_command(['mktemp', '-d'], user, host)))
+                Sys.build_command(['mktemp', '-d'], user, host, ssh_key)))
         except UpsetError as error:
             raise UpsetError(
                     'could not create temporary directory') from error
 
     @staticmethod
     def remove_temporary_directory(directory: pathlib.Path,
-            user: str = '', host: str = '') -> None:
+            user: str = '', host: str = '',
+            ssh_key: pathlib.Path = pathlib.Path()) -> None:
         """Remove the temporary directory for `user` on `host`.
 
         Args:
@@ -607,11 +610,12 @@ class Sys:
                 for default behaviour).
             host: The host to execute the task on (see
                 `Sys.build_command()` for default behaviour).
+            ssh_key: The ssh key or identity to use.
         """
         try:
             Sys.run_command(
                 Sys.build_command(['rm', '-r', str(directory)], user,
-                    host))
+                    host, ssh_key))
         except UpsetError as error:
             raise UpsetError(
                     'could not remove temporary directory') from error
@@ -644,13 +648,13 @@ class Sys:
         Sys.run_command(Sys.build_command([
             'ssh-keygen', '-q', '-N', '""', '-f', str(key_file)]))
 
-        print(f'Please enter the password for {user}@{host} to make key files' \
-                'work')
-
         authorized_keys: pathlib.Path = authorized_keys_directory / \
                 'authorized_keys'
 
         pub_key_file: pathlib.Path = pathlib.Path(f'{key_file}.pub')
+
+        print(f'Please enter the password for {user}@{host} to make key files' \
+                'work')
 
         proc: subprocess.Popen
         with subprocess.Popen(
@@ -660,7 +664,7 @@ class Sys:
                     'chmod', '700', str(authorized_keys_directory), '&&',
                     'touch', str(authorized_keys), '&&',
                     'chmod', '600', str(authorized_keys), '&&',
-                    f'{{ -z `tail -1c {authorized_keys} 2>/dev/null` ] || ' \
+                    f'{{ [ -z `tail -1c {authorized_keys} 2>/dev/null` ] || ' \
                             f'echo >> "{authorized_keys}" || exit 1; }}', '&&',
                     'echo', f'"{pub_key_file.read_text(encoding="utf-8")}"',
                     '>>', str(authorized_keys)],
@@ -668,8 +672,10 @@ class Sys:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE) as proc:
             proc.wait()
-            #print(proc.stdout.read())
-            #print(proc.stderr.read())
+            if proc.stdout:
+                logger.debug(proc.stdout.read())
+            if proc.stderr:
+                logger.debug(proc.stderr.read())
 
     @staticmethod
     def ensure_ssh_key_absent(user: str, host: str, key_file: pathlib.Path,
