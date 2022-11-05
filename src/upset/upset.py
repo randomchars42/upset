@@ -150,6 +150,8 @@ class Upset:
                             password, var)
         except lib.UpsetError as error:
             logger.error(error)
+        except KeyboardInterrupt:
+            logger.warning('recieved interrupt, stopping')
         finally:
             try:
                 if str(temp_dir) == str(pathlib.Path()):
