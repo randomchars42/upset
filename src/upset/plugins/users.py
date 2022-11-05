@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Plugin to ensure users exist.
+Plugin to ensure users exists.
 
 Can handle:
  - creation of users
@@ -185,7 +185,7 @@ class Users(lib.Plugin):
         if self.user_exists(name):
             return
 
-        command = ['/usr/sbin/adduser', '--disabled-password']
+        command = ['adduser', '--disabled-password']
 
         if uid != '':
             command.extend(['--uid', uid])
@@ -206,7 +206,7 @@ class Users(lib.Plugin):
             logger.info('setting password for user "%s"', name)
 
             lib.Sys.run_command(lib.Sys.build_command([
-                '/usr/sbin/usermod', '--password', password, name], sudo=True))
+                'usermod', '--password', password, name], sudo=True))
 
     def ensure_user_absent(self, name: str) -> None:
         """Ensure a username is not used.
@@ -221,7 +221,7 @@ class Users(lib.Plugin):
 
         logger.info('deleting user "%s"', name)
 
-        lib.Sys.run_command(lib.Sys.build_command(['/usr/sbin/deluser', name],
+        lib.Sys.run_command(lib.Sys.build_command(['deluser', name],
             sudo=True))
 
     def ensure_group(self, name: str, gid: str = ''):
@@ -238,7 +238,7 @@ class Users(lib.Plugin):
         if self.group_exists(name):
             return
 
-        command = ['/usr/sbin/addgroup']
+        command = ['addgroup']
 
         if gid != '':
             command.extend(['--gid', str(gid)])
@@ -262,7 +262,7 @@ class Users(lib.Plugin):
 
         logger.info('deleting group "%s"', name)
 
-        lib.Sys.run_command(lib.Sys.build_command(['/usr/sbin/delgroup', name],
+        lib.Sys.run_command(lib.Sys.build_command(['delgroup', name],
             sudo=True))
 
     def ensure_in_group(self, name: str, group: str) -> None:
@@ -280,7 +280,7 @@ class Users(lib.Plugin):
         logger.info('adding user "%s" to group "%s"', name, group)
 
         lib.Sys.run_command(lib.Sys.build_command(
-            ['/usr/sbin/adduser', name, group], sudo=True))
+            ['adduser', name, group], sudo=True))
 
     def ensure_not_in_group(self, name, group):
         """Ensure user is not in the given group.
@@ -297,7 +297,7 @@ class Users(lib.Plugin):
         logger.info('removing user "%s" from group "%s"', name, group)
 
         lib.Sys.run_command(lib.Sys.build_command(
-            ['/usr/sbin/deluser', name, group], sudo=True))
+            ['deluser', name, group], sudo=True))
 
 if __name__ == '__main__':
     users: Users = Users()
