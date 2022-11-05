@@ -97,12 +97,13 @@ class Upset:
             user_plugins_dir: Path to user defined plugins.
         """
         temp_dir: pathlib.Path = pathlib.Path()
+        password: str = ''
         try:
             # read the plan
             plan: Tasklist = self.read_plan(pathlib.Path(path_plan))
 
             # the plugins are called as super user on the target machine
-            password: str = getpass.getpass(f'Password for {user}@{host}:')
+            password = getpass.getpass(f'Password for {user}@{host}:')
 
             # use ssh key for authentication on the target machine
             if ssh_key_path == '':
@@ -165,8 +166,8 @@ class Upset:
                     # do not attempt to remove the current directory
                     logger.info('no temporary directory to clean up')
                 else:
-                    lib.Sys.remove_temporary_directory(temp_dir, user, host,
-                            ssh_key)
+                    lib.Sys.remove_temporary_directory(temp_dir, password, user,
+                            host, ssh_key)
             except lib.UpsetError:
                 logger.error('could not clean up temporary directory "%s"',
                         temp_dir)
