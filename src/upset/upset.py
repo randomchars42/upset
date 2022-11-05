@@ -171,6 +171,7 @@ class Upset:
             except lib.UpsetError:
                 logger.error('could not clean up temporary directory "%s"',
                         temp_dir)
+                traceback.print_exc(file=sys.stdout)
 
     def read_plan(self, path: pathlib.Path) -> list[Any]:
         """Read the specified JSON file and validate it as a plan.
