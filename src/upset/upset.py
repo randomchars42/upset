@@ -218,6 +218,12 @@ class Upset:
             lib.Sys.run_command(
                     lib.Sys.build_scp_command(
                         pathlib.Path(pkg_resources.resource_filename(
+                            __name__, '__init__.py')),
+                        temporary_directory,
+                        direction='to', user=user, host=host, ssh_key=ssh_key))
+            lib.Sys.run_command(
+                    lib.Sys.build_scp_command(
+                        pathlib.Path(pkg_resources.resource_filename(
                             __name__, 'lib.py')),
                         temporary_directory,
                         direction='to', user=user, host=host, ssh_key=ssh_key))
