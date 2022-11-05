@@ -187,7 +187,7 @@ class Fs:
         Raises:
             UpsetFsError: If filesystem interaction fails.
         """
-        logger.info('ensuring symlink "%s" tp "%s"', str(path), str(target))
+        logger.info('ensuring symlink "%s" to "%s"', str(path), str(target))
         if path.is_symlink():
             if path.resolve().samefile(target):
                 logging.debug('symlink "%s" already present', str(path))
