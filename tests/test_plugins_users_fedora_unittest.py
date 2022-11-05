@@ -70,7 +70,7 @@ class TestPluginsUsersFedora(unittest.TestCase):
         with self.assertRaises(lib.UpsetError):
             self._users.user_in_group('!kitty', 'root')
 
-    @unittest.skipUnless(True,#require_interaction,
+    @unittest.skipUnless(require_interaction,
             'do not require interaction with the user')
     def test_ensure_user(self) -> None:
         """Ensure user exists / does not exist."""
@@ -95,7 +95,7 @@ class TestPluginsUsersFedora(unittest.TestCase):
         self._users.ensure_group_absent('upsettestgroup')
         self.assertFalse(self._users.group_exists('upsettestgroup'))
 
-    @unittest.skipUnless(True,#require_interaction,
+    @unittest.skipUnless(require_interaction,
             'do not require interaction with the user')
     def test_ensure_in_group(self) -> None:
         """Ensure user is / is not in group."""
