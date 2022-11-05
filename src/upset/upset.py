@@ -154,7 +154,6 @@ class Upset:
                     print(output)
         except lib.UpsetError as error:
             logger.error(error)
-            print(error)
             traceback.print_exc(file=sys.stdout)
         except KeyboardInterrupt:
             logger.warning('recieved interrupt, stopping')
