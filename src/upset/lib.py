@@ -597,20 +597,26 @@ class Sys:
             The path of the temporary directory.
         """
         try:
-            return pathlib.Path(Sys.run_command(
+            tmp_dir: pathlib.Path = pathlib.Path(Sys.run_command(
                 Sys.build_command(['mktemp', '-d'], user, host, ssh_key)))
+            Sys.run_command(Sys.build_command(['mkdir', f'{tmp_dir}/upset'],
+                user, host, ssh_key))
+            return tmp_dir / 'upset'
         except UpsetError as error:
             raise UpsetError(
                     'could not create temporary directory') from error
 
     @staticmethod
-    def remove_temporary_directory(directory: pathlib.Path,
+    def remove_temporary_directory(directory: pathlib.Path, password: str = '',
             user: str = '', host: str = '',
             ssh_key: pathlib.Path = pathlib.Path()) -> None:
         """Remove the temporary directory for `user` on `host`.
 
         Args:
             directory: The path to the temporary directory.
+            password: The sudo password. This is required because the
+                plugins are run as root and the remaining pyc-files
+                can only be deleted using sudo.
             user: The user to log in with (see `Sys.build_command()`
                 for default behaviour).
             host: The host to execute the task on (see
@@ -618,9 +624,15 @@ class Sys:
             ssh_key: The ssh key or identity to use.
         """
         try:
-            Sys.run_command(
-                Sys.build_command(['rm', '-r', str(directory)], user,
-                    host, ssh_key))
+            if directory.parts[1] == 'tmp':
+                # make sure this is only called on /tmp/*
+                Sys.run_command(
+                    Sys.build_sudo_command(['rm', '-r', str(directory.parent)],
+                        password, user, host, ssh_key))
+            else:
+                Sys.run_command(
+                    Sys.build_command(['rm', '-r', str(directory.parent)], user,
+                        host, ssh_key))
         except UpsetError as error:
             raise UpsetError(
                     'could not remove temporary directory') from error
