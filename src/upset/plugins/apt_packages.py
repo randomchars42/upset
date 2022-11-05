@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 """
-Plugin to ensure users exist.
+Plugin to ensure an apt package is installed.
 
 Can handle:
- - detection if installed packages
+ - detection if packages are installed
  - installation of deb-packages via apt
  - removal of deb-packages via apt
 
