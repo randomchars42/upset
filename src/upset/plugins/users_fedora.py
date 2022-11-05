@@ -100,16 +100,16 @@ class UsersFedora(lib.Plugin):
             if subtask['ensure'] == 'user':
                 self.ensure_user(
                         subtask['name'],
-                        subtask.get('uid', ''),
+                        subtask.get('id', ''),
                         subtask.get('group', ''),
                         subtask.get('gecos', ''),
                         subtask.get('password', ''))
             elif subtask['ensure'] == 'user_absent':
                 self.ensure_user_absent(subtask['name'])
             elif subtask['ensure'] == 'group':
-                self.ensure_group(subtask)
+                self.ensure_group(subtask['name'], subtask.get('id', ''))
             elif subtask['ensure'] == 'group_absent':
-                self.ensure_group_absent(subtask)
+                self.ensure_group_absent(subtask['name'])
             elif subtask['ensure'] == 'in_group':
                 self.ensure_in_group(subtask['name'], subtask['group'])
             elif subtask['ensure'] == 'not_in_group':
