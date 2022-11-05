@@ -139,7 +139,7 @@ class Paths(lib.Plugin):
     def run(self) -> None:
         """Do the main work."""
         for subtask in self.data['variables']['paths']:
-            if not subtask['path'].absolute():
+            if not pathlib.Path(subtask['path']).absolute():
                 raise lib.UpsetError('cannot ensure relative path '
                         f'"{subtask["path"]}"')
 
