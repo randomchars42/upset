@@ -9,6 +9,8 @@ import json
 import logging
 import pathlib
 import pkg_resources
+import sys
+import traceback
 
 from typing import Any
 from upset import lib
@@ -146,10 +148,13 @@ class Upset:
                     self.send_files(expanded_task, temp_dir, user, host,
                             ssh_key)
                     # run the task
-                    self.run_task(expanded_task, temp_dir, user, host, ssh_key,
-                            password, var)
+                    output: str = self.run_task(expanded_task, temp_dir, user,
+                            host, ssh_key, password, var)
+                    print(output)
         except lib.UpsetError as error:
             logger.error(error)
+            print(error)
+            traceback.print_exc(file=sys.stdout)
         except KeyboardInterrupt:
             logger.warning('recieved interrupt, stopping')
         finally:
@@ -373,7 +378,6 @@ class Upset:
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
                     f'could not run plugin "{task.plugin}"') from error
-        # return for testing / debugging
 
     def transform_task_to_data(self, task: Task, for_variable: dict) -> Any:
         """Transform the information in a task for the remote plugin.
