@@ -160,7 +160,7 @@ class Fs:
                         template.substitutes)
         except OSError as error:
             raise UpsetFsError(
-                    'could not open template "{template.file}"') from error
+                    f'could not open template "{template.file}"') from error
 
         logger.info('creating file: %s', str(path))
         try:
