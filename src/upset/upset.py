@@ -151,7 +151,8 @@ class Upset:
                     # run the task
                     output: str = self.run_task(expanded_task,
                             temp_dir / 'upset', user,
-                            host, ssh_key, password, var)
+                            host, ssh_key, password, var,
+                            pathlib.Path(path_plan).resolve().parent)
                     if output.strip() != '':
                         print(output.strip())
         except lib.UpsetError as error:
@@ -364,6 +365,7 @@ class Upset:
     def run_task(self, task: Task, temporary_directory: pathlib.Path,
             user: str, host: str, ssh_key: pathlib.Path,
             password: str, for_task: dict[str, str],
+            base_dir: pathlib.Path = pathlib.Path(),
             python: str = 'python3') -> str:
         """Run the task on the target machine.
 
@@ -378,6 +380,7 @@ class Upset:
             for_task: The current value(s) of `Task.foreach` which
                 will be added to the task.
             python: The python executable on the target machine.
+            base_dir: Directory to resolve relative file paths to.
 
         Raises:
             lib.UpsetError: Raised if the transfer failed.
@@ -392,7 +395,8 @@ class Upset:
                         f'{python} -m '
                         f'upset.{task.plugin} ')
             command += lib.Helper.encode_data(
-                            self.transform_task_to_data(task, for_task))
+                            self.transform_task_to_data(task, for_task,
+                                                        base_dir))
             return lib.Sys.run_command(
                     lib.Sys.build_sudo_command([
                         'bash', '-c ', f'"{command}"'],
@@ -402,7 +406,8 @@ class Upset:
                     f'could not run task "{task.name}" on plugin '
                     f'"{task.plugin}"') from error
 
-    def transform_task_to_data(self, task: Task, for_variable: dict) -> Any:
+    def transform_task_to_data(self, task: Task, for_variable: dict,
+            base_dir: pathlib.Path = pathlib.Path()) -> Any:
         """Transform the information in a task for the remote plugin.
 
         Creates an additional key from the name specified in
@@ -416,10 +421,13 @@ class Upset:
             task: The task to transform.
             for_variable: The current value(s) of `Task.foreach` which
                 will be added to the task.
+            base_dir: Directory to resolve relative file paths to.
         """
         for name, file in task.files.items():
-            task.files[name] = lib.Helper.create_unique_file_name(
-                    pathlib.Path(file))
+            file_path: pathlib.Path = pathlib.Path(file)
+            if not file_path.is_absolute():
+                file_path = base_dir / file_path
+            task.files[name] = lib.Helper.create_unique_file_name(file_path)
 
         return {
                 'name': task.name,
