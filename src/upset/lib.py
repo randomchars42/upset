@@ -284,7 +284,9 @@ class Fs:
             if part == '/':
                 permissions.pop(0)
                 continue
-            Fs.ensure_dir(pathlib.Path(f'/{"/".join(path.parts[1:i])}'),
+            logger.debug('ensuring part "%s" with permissions "%s"',
+                    '/'.join(path.parts[1:i-1]), permissions[0])
+            Fs.ensure_dir(pathlib.Path(f'/{"/".join(path.parts[1:i-1])}'),
                     permissions.pop(0), backup)
 
     @staticmethod
