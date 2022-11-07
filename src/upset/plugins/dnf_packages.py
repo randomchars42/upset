@@ -114,7 +114,16 @@ class DnfPackages(lib.Plugin):
             `True` if the package exists else `False`.
         """
         try:
-            lib.Sys.run_command(lib.Sys.build_command(['rpm', '-q', package]))
+            output: str = lib.Sys.run_command(lib.Sys.build_command(
+                ['rpm', '-q', package, '2>', '/dev/null']))
+            if 'https://' in package:
+                # if a url was given as package name and it resolves
+                # `rpm -q` will exit with `0` even if the package is
+                # not installed
+                # instead it returns the package name
+                # so we test if this is installed
+                lib.Sys.run_command(lib.Sys.build_command(
+                    ['rpm', '-q', output, '2>', '/dev/null']))
         except lib.UpsetSysError:
             return False
         return True
