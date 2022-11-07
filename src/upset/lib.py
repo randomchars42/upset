@@ -355,6 +355,10 @@ class Fs:
 
         current_mode: str = oct(stat.S_IMODE(path.lstat().st_mode))[2:]
 
+        logging.debug('current owner: %s; should be %s', path.owner(),
+                owner)
+        logging.debug('current group: %s; should be %s', path.group(),
+                group)
         logging.debug('current mode: %s; should be %s', current_mode,
                 mode)
 
