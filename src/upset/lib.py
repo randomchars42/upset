@@ -442,7 +442,8 @@ class Sys:
             result: subprocess.CompletedProcess = subprocess.run(
                     command_parts, check=True,
                     capture_output=True)
-            return result.stdout.decode().strip()
+            return (result.stdout.decode().strip() +
+                    result.stderr.decode().strip())
         except subprocess.CalledProcessError as error:
             raise UpsetSysError(
                     f'command {" ".join(command_parts)} returned with '
