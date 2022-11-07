@@ -147,7 +147,7 @@ class Upset:
                     # files that have already been sent are not sent
                     # twice (see Upset._sent_files)
                     self.send_files(expanded_task, temp_dir, user, host,
-                            ssh_key, pathlib.Path(path_plan).parent)
+                            ssh_key, pathlib.Path(path_plan).resolve().parent)
                     # run the task
                     output: str = self.run_task(expanded_task,
                             temp_dir / 'upset', user,
