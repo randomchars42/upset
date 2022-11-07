@@ -147,7 +147,7 @@ class Upset:
                     # files that have already been sent are not sent
                     # twice (see Upset._sent_files)
                     self.send_files(expanded_task, temp_dir, user, host,
-                            ssh_key)
+                            ssh_key, pathlib.Path(path_plan).parent)
                     # run the task
                     output: str = self.run_task(expanded_task,
                             temp_dir / 'upset', user,
@@ -167,7 +167,6 @@ class Upset:
                     # do not attempt to remove the current directory
                     logger.info('no temporary directory to clean up')
                 else:
-                    return
                     lib.Sys.remove_temporary_directory(temp_dir, password, user,
                             host, ssh_key)
             except lib.UpsetError:
@@ -324,7 +323,8 @@ class Upset:
 
     def send_files(self, task: Task, temporary_directory: pathlib.Path,
             user: str, host: str,
-            ssh_key: pathlib.Path = pathlib.Path()) -> None:
+            ssh_key: pathlib.Path = pathlib.Path(),
+            base_dir: pathlib.Path = pathlib.Path()) -> None:
         """Send files to target if they have not already been sent.
 
         Args:
@@ -334,6 +334,7 @@ class Upset:
             user: The user to log in with.
             host: The host to execute the task on.
             ssh_key: The ssh key or identity to use.
+            base_dir: Directory to resolve relative file paths to.
 
         Raises:
             lib.UpsetError: Raised if the transfer failed.
@@ -345,6 +346,8 @@ class Upset:
             logger.info('sending file "%s"', file)
             try:
                 file_path: pathlib.Path = pathlib.Path(file)
+                if not file_path.is_absolute():
+                    file_path = base_dir / file_path
                 lib.Sys.run_command(
                         lib.Sys.build_scp_command(
                             file_path,
