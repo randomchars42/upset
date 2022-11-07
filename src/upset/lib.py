@@ -459,7 +459,7 @@ class Sys:
         """Prepare a command to be run with sudo non-interactively.
 
         Achieves this by making `sudo` read the password from `stdin`
-        (`-S`) and without a promt (`--prompt=`). The password is
+        (`-S`) and without a prompt (`--prompt=`). The password is
         `echo`ed and piped into `sudo`s `stdin`.
 
         To avoid having to deal with escaping issues the sequence
