@@ -118,7 +118,7 @@ class Upset:
             temp_dir = lib.Sys.make_temporary_directory(
                     user, host, ssh_key)
             # send the library to the target machine
-            self.send_lib(temp_dir, user, host, ssh_key)
+            self.send_lib(temp_dir / 'upset', user, host, ssh_key)
             # determine the path to the user provided plugins
             # use fallback if none is provided
             user_plugins_path: pathlib.Path = (
@@ -131,7 +131,7 @@ class Upset:
                 # send plugin to the target machine
                 # plugins that have already been sent are not sent
                 # twice (see Upset._sent_plugins)
-                self.send_plugin(task, temp_dir, user, host, ssh_key,
+                self.send_plugin(task, temp_dir / 'upset', user, host, ssh_key,
                         user_plugins_path)
                 # run task for every set of variables in `task.foreach`
                 # if it is empty provide a fake task
@@ -149,9 +149,11 @@ class Upset:
                     self.send_files(expanded_task, temp_dir, user, host,
                             ssh_key)
                     # run the task
-                    output: str = self.run_task(expanded_task, temp_dir, user,
+                    output: str = self.run_task(expanded_task,
+                            temp_dir / 'upset', user,
                             host, ssh_key, password, var)
-                    print(output.strip())
+                    if output.strip() != '':
+                        print(output.strip())
         except lib.UpsetError as error:
             logger.error(error)
             traceback.print_exc(file=sys.stdout)
@@ -165,6 +167,7 @@ class Upset:
                     # do not attempt to remove the current directory
                     logger.info('no temporary directory to clean up')
                 else:
+                    return
                     lib.Sys.remove_temporary_directory(temp_dir, password, user,
                             host, ssh_key)
             except lib.UpsetError:
@@ -337,6 +340,7 @@ class Upset:
         """
         for name,file in task.files.items():
             if name in self._sent_files:
+                logger.debug('already sent "%s"', file)
                 continue
             logger.info('sending file "%s"', file)
             try:

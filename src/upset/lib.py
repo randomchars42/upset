@@ -606,7 +606,7 @@ class Sys:
                 Sys.build_command(['mktemp', '-d'], user, host, ssh_key)))
             Sys.run_command(Sys.build_command(['mkdir', f'{tmp_dir}/upset'],
                 user, host, ssh_key))
-            return tmp_dir / 'upset'
+            return tmp_dir# / 'upset'
         except UpsetError as error:
             raise UpsetError(
                     'could not create temporary directory') from error
@@ -632,11 +632,11 @@ class Sys:
             if directory.parts[1] == 'tmp':
                 # make sure this is only called on /tmp/*
                 Sys.run_command(
-                    Sys.build_sudo_command(['rm', '-r', str(directory.parent)],
+                    Sys.build_sudo_command(['rm', '-r', str(directory)],
                         password, user, host, ssh_key))
             else:
                 Sys.run_command(
-                    Sys.build_command(['rm', '-r', str(directory.parent)], user,
+                    Sys.build_command(['rm', '-r', str(directory)], user,
                         host, ssh_key))
         except UpsetError as error:
             raise UpsetError(
