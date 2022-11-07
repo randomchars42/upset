@@ -98,6 +98,8 @@ class DnfPackages(lib.Plugin):
                 self.dnf_do('clean all')
             elif subtask['ensure'] == 'autoremove':
                 self.dnf_do('autoremove')
+            elif subtask['ensure'] == 'groupupdate':
+                self.dnf_groupupdate(subtask['parameters'])
             else:
                 raise lib.UpsetError(
                         f'no such subtask "{subtask["ensure"]}"')
@@ -236,6 +238,17 @@ class DnfPackages(lib.Plugin):
 
         lib.Sys.run_command(lib.Sys.build_command(
             ['dnf', '-q', '-y', task], sudo=True))
+
+    def dnf_groupupdate(self, parameters: list[str]) -> None:
+        """Do a `dnf groupupdate`.
+
+        Args:
+            parameters: Parameters to `dnf groupupdate`.
+        """
+        logger.info('Calling "dnf groupupdate %s"', ' '.join(parameters))
+
+        lib.Sys.run_command(lib.Sys.build_command(
+            ['dnf', '-q', '-y', 'groupupdate'] + parameters, sudo=True))
 
 if __name__ == '__main__':
     dnf_packages: DnfPackages = DnfPackages()
