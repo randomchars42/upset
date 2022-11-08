@@ -383,7 +383,7 @@ class Fs:
 
     @staticmethod
     def ensure_in_file(path: pathlib.Path, text: str, insert_at: str = r'\Z',
-            backup = True) -> None:
+                       needle: str = '', backup = True) -> None:
         """Ensure a string occcurs in a file.
 
         Args:
@@ -392,6 +392,8 @@ class Fs:
             insert_at: The position where the text must occur. Must be
                 a valid regular expression. Default is to much the end
                 of the file appending the text to the file.
+            needle: If the text is too complex search for needle as a
+                surrogate.
             backup: Create a backup (see `Fs.backup()`; default is
                 `True`).
 
@@ -408,7 +410,10 @@ class Fs:
 
         logger.info('ensuring "%s" is in "%s"', text.split('\n')[0], str(path))
 
-        if re.search(text, haystack):
+        if needle == '':
+            needle = text
+
+        if re.search(needle, haystack):
             logger.debug('text is already in the file')
             return
 

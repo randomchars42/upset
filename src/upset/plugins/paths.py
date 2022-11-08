@@ -63,8 +63,9 @@ Examples::
                 {
                     "path": "/home/{user}/file",
                     "ensure": "in_file",
-                    "text": "some text",
+                    "text": "some <complex="%[]"> text with a needle",
                     "insert_at": "",
+                    "needle": "needle",
                     "backup": true,
                 },
                 # describe a directory
@@ -260,10 +261,13 @@ class Paths(lib.Plugin):
         """
         if not 'insert_at' in subtask or subtask['insert_at'] == '':
             subtask['insert_at'] = r'\Z'
+        if not 'needle' in subtask:
+            subtask['needle'] = ''
         lib.Fs.ensure_in_file(
                 pathlib.Path(subtask['path']),
                 subtask['text'],
                 subtask['insert_at'],
+                subtask['needle'],
                 subtask['backup'])
 
 if __name__ == '__main__':
