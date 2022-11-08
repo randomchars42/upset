@@ -26,6 +26,7 @@ class Task():
         self.foreach: list[dict[str, str]] = []
         self.variables: dict[str, Any] = {}
         self.files: dict[str, str] = {}
+        self.run_as: str = 'root'
 
     def __iter__(self) -> Any:
         yield from {
@@ -33,7 +34,8 @@ class Task():
             'plugin': self.plugin,
             'foreach': self.foreach,
             'variables': self.variables,
-            'files': self.files
+            'files': self.files,
+            'run_as': self.run_as
         }.items()
 
     def __str__(self) -> str:
@@ -149,10 +151,15 @@ class Upset:
                     self.send_files(expanded_task, temp_dir, user, host,
                             ssh_key, pathlib.Path(path_plan).resolve().parent)
                     # run the task
-                    output: str = self.run_task(expanded_task,
-                            temp_dir / 'upset', user,
-                            host, ssh_key, password, var,
-                            pathlib.Path(path_plan).resolve().parent)
+                    output: str = self.run_task(
+                            task=expanded_task,
+                            temporary_directory=temp_dir / 'upset',
+                            user=user,
+                            host=host,
+                            ssh_key=ssh_key,
+                            password=password,
+                            for_task=var,
+                            base_dir=pathlib.Path(path_plan).resolve().parent)
                     if output.strip() != '':
                         print(output.strip())
         except lib.UpsetError as error:
@@ -248,6 +255,7 @@ class Upset:
         # expand
         new_task.variables = self.expand_task_leaves(task.variables, var)
         new_task.files = self.expand_task_leaves(task.files, var)
+        new_task.run_as = self.expand_task_leaves(task.run_as, var)
 
         return new_task
 
@@ -379,8 +387,8 @@ class Upset:
             password: The password to use `sudo` on the target machine.
             for_task: The current value(s) of `Task.foreach` which
                 will be added to the task.
-            python: The python executable on the target machine.
             base_dir: Directory to resolve relative file paths to.
+            python: The python executable on the target machine.
 
         Raises:
             lib.UpsetError: Raised if the transfer failed.
@@ -397,10 +405,17 @@ class Upset:
             command += lib.Helper.encode_data(
                             self.transform_task_to_data(task, for_task,
                                                         base_dir))
+            if task.run_as != 'root':
+                lib.Sys.run_command(
+                    lib.Sys.build_sudo_command([
+                        'bash', '-c ',
+                        f'"chown -R {task.run_as} '
+                            f'{temporary_directory.parent}"'],
+                        password, user, host, ssh_key))
             return lib.Sys.run_command(
                     lib.Sys.build_sudo_command([
                         'bash', '-c ', f'"{command}"'],
-                        password, user, host, ssh_key))
+                        password, user, host, ssh_key, task.run_as))
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
                     f'could not run task "{task.name}" on plugin '
@@ -434,7 +449,8 @@ class Upset:
                 'plugin': task.plugin,
                 'variables': task.variables,
                 'files': task.files,
-                'for': for_variable
+                'for': for_variable,
+                'run_as': task.run_as
                 }
 
 def main() -> None:

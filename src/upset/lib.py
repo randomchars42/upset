@@ -466,7 +466,8 @@ class Sys:
     @staticmethod
     def build_sudo_command(command_parts: list[str], password: str,
             user: str = '', host: str = '',
-            ssh_key: pathlib.Path = pathlib.Path()) -> list[str]:
+            ssh_key: pathlib.Path = pathlib.Path(),
+            run_as: str = 'root') -> list[str]:
         """Prepare a command to be run with sudo non-interactively.
 
         Achieves this by making `sudo` read the password from `stdin`
@@ -495,16 +496,22 @@ class Sys:
             host: The host to execute the task on (see
                 `Sys.build_command()` for default behaviour).
             ssh_key: The ssh key or identity to use.
+            run_as: Run the task as root (sudo) or as a different user
+                without elevated privileges.
 
         Returns:
             A command that can be passed to a shell via
             `Sys.run_command()`.
         """
         command: str = ' '.join(command_parts)
+        if run_as == 'root':
+            run_as = ''
+        else:
+            run_as = f'-u {run_as}'
         # base64.b64encode() needs a byte-like argument so the string
         # is first "encoded"
         encoded_command: bytes = base64.b64encode(
-                f'echo "{password}" | sudo -S --prompt= -- '
+                f'echo "{password}" | sudo {run_as} -S --prompt= -- '
                     f'{command}\n'.encode())
         # the result is a bytestream so it is "decoded" to a string
         # but it is still base64-gibberish
