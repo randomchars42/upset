@@ -154,19 +154,24 @@ class Fs:
         # remove or backup the file if it exists
         Fs.remove(path, backup)
 
-        try:
-            content: str = string.Template(
-                template.file.read_text(encoding='utf-8')).safe_substitute(
-                        template.substitutes)
-        except OSError as error:
-            raise UpsetFsError(
-                    f'could not open template "{template.file}"') from error
+        if len(template.substitutes) != 0:
+            try:
+                content: str = string.Template(
+                    template.file.read_text(encoding='utf-8')).safe_substitute(
+                            template.substitutes)
+            except OSError as error:
+                raise UpsetFsError(
+                        f'could not open template "{template.file}"') from error
 
-        logger.info('creating file: %s', str(path))
-        try:
-            path.write_text(content, encoding='utf-8')
-        except OSError as error:
-            raise UpsetFsError(f'could not create file "{path}"') from error
+            logger.info('creating file: %s', str(path))
+            try:
+                path.write_text(content, encoding='utf-8')
+            except OSError as error:
+                raise UpsetFsError(f'could not create file "{path}"') from error
+        else:
+            logger.info('copying file "%s" to "%s"', str(template.file),
+                str(path))
+            shutil.copy(str(template.file), str(path))
         Fs.ensure_perms(path, permissions)
 
     @staticmethod
