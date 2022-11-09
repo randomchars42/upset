@@ -80,6 +80,7 @@ Examples::
                     "python": "3.11",
                     "pyenv": "~/.pyenv",
                     "manager": "pipx"
+                    "options": "--system-site-packages"
                 },
                 # ensure packages are absent via pipx
                 {
@@ -148,7 +149,8 @@ class Python(lib.Plugin):
                     subtask['names'],
                     subtask.get('python', 'system'),
                     subtask.get('pyenv', '~/.pyenv'),
-                    subtask.get('pipx', '~/.pipx'))
+                    subtask.get('pipx', '~/.pipx'),
+                    subtask.get('options', ''))
             elif subtask['ensure'] == 'packages_absent':
                 self.ensure_packages_absent(
                     subtask['manager'],
@@ -444,7 +446,8 @@ class Python(lib.Plugin):
         self.package_do('pip', 'pipx', 'uninstall', version, pyenv, str(path))
 
     def ensure_packages(self, packagemanager: str, names: list[str],
-                        version: str, pyenv: str, pipx: str) -> None:
+                        version: str, pyenv: str, pipx: str,
+                        options: str = '') -> None:
         """Ensure package is installed.
 
         Args:
@@ -475,11 +478,16 @@ class Python(lib.Plugin):
                     f'unknown packagemanager "{packagemanager}"')
             to_install.append(name)
 
+        if packagemanager == 'pip':
+            action = f'install --user {options}'
+        else:
+            action = f'install {options}'
+
         logger.debug('installing %s packages "%s" under "%s"',
             packagemanager, ', '.join(to_install), version)
         for name in to_install:
-            self.package_do(packagemanager, name, 'install', version, pyenv,
-                pipx)
+            self.package_do(packagemanager, name, action, version,
+                pyenv, pipx)
 
     def ensure_packages_absent(self, packagemanager: str, names: list[str],
         version: str, pyenv: str, pipx: str) -> None:
