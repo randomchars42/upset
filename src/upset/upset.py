@@ -405,6 +405,7 @@ class Upset:
             command += lib.Helper.encode_data(
                             self.transform_task_to_data(task, for_task,
                                                         base_dir))
+            output: str = ''
             if task.run_as != 'root':
                 lib.Sys.run_command(
                     lib.Sys.build_sudo_command([
@@ -412,10 +413,18 @@ class Upset:
                         f'"chown -R {task.run_as} '
                             f'{temporary_directory.parent}"'],
                         password, user, host, ssh_key))
-            return lib.Sys.run_command(
+            output = lib.Sys.run_command(
                     lib.Sys.build_sudo_command([
                         'bash', '-c ', f'"{command}"'],
                         password, user, host, ssh_key, task.run_as))
+            if task.run_as != 'root':
+                lib.Sys.run_command(
+                    lib.Sys.build_sudo_command([
+                        'bash', '-c ',
+                        f'"chown -R {user} '
+                            f'{temporary_directory.parent}"'],
+                        password, user, host, ssh_key))
+            return output
         except lib.UpsetSysError as error:
             raise lib.UpsetError(
                     f'could not run task "{task.name}" on plugin '
