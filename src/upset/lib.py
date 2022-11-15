@@ -97,7 +97,9 @@ class Fs:
 
         logger.info('removing path %s', str(path))
         try:
-            if path.is_dir():
+            if path.is_symlink():
+                path.unlink()
+            elif path.is_dir():
                 path.rmdir()
             else:
                 path.unlink()
@@ -194,7 +196,8 @@ class Fs:
         """
         logger.info('ensuring symlink "%s" to "%s"', str(path), str(target))
         if path.is_symlink():
-            if path.resolve().exists() and path.resolve().samefile(target):
+            if (path.exists() and target.exists() and
+                path.resolve().samefile(target)):
                 logging.debug('symlink "%s" already present', str(path))
                 return
             path.unlink()
@@ -225,7 +228,7 @@ class Fs:
         """
         logger.info('ensuring directory "%s"', str(path))
 
-        if path.is_dir():
+        if not path.is_symlink() and path.is_dir():
             logging.debug('directory "%s" already present', str(path))
             Fs.ensure_perms(path, permissions)
             return
