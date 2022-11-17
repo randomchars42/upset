@@ -5,8 +5,3 @@ name = "pypi"
 
 [packages]
 upset = {editable = true, path = "."}
-
-[dev-packages]
-
-[requires]
-
