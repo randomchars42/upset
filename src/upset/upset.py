@@ -394,11 +394,8 @@ class Upset:
             lib.UpsetError: Raised if the transfer failed.
         """
         try:
-            if len(for_task) > 1:
-                logger.info('running task "%s" for "%s"', task.name,
-                        str(for_task))
-            else:
-                logger.info('running task "%s"', task.name)
+            logger.info('running task "%s" for "%s"', task.name,
+                    str(for_task))
             command: str = (f'cd {temporary_directory.parent} && '
                         f'{python} -m '
                         f'upset.{task.plugin} ')
